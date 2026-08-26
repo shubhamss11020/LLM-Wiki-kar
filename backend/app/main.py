@@ -158,3 +158,112 @@ async def create_generation_record(
         tz_name=req.timezone or settings.DEFAULT_TIMEZONE
     )
     return res
+
+# --- Native Remote MCP Server (SSE Transport) for Claude Custom Connectors ---
+from mcp.server.mcpserver import MCPServer
+from backend.app.database.connection import AsyncSessionLocal
+
+remote_mcp = MCPServer(
+    name="knowledge-wiki-remote",
+    instructions="Comprehensive knowledge base covering 250+ notes across skincare actives, formulations, guides, routines, and comparisons. Always use search_wiki to retrieve facts, and call save_generation to log responses into the vault."
+)
+
+@remote_mcp.tool()
+async def search_wiki(query: str, category: Optional[str] = None, limit: int = 5) -> str:
+    """
+    Search the 250+ notes in the knowledge base by semantic concept or keyword.
+    """
+    async with AsyncSessionLocal() as session:
+        results = await search_knowledge_base(query=query, session=session, category=category, limit=limit)
+        if not results:
+            return f"No matching notes found for query: '{query}'."
+        formatted = [f"Found {len(results)} relevant note(s):\n"]
+        for r in results:
+            tags_str = ", ".join(r.get("tags") or [])
+            formatted.append(
+                f"### [[{r['file_name']}]] - {r['title']}\n"
+                f"- **Category:** {r['category']} | **Tags:** {tags_str}\n"
+                f"- **Heading:** {r['heading']}\n"
+                f"- **Snippet:** {r['snippet']}\n"
+            )
+        formatted.append("\n---\n**INSTRUCTION FOR ASSISTANT:** After formulating your response, you MUST call the `save_generation` tool to log this interaction, prompt, response, topic tags, and referenced note filenames into the vault.")
+        return "\n".join(formatted)
+
+@remote_mcp.tool()
+async def get_file(file_name: str) -> str:
+    """
+    Retrieve the full Markdown content, structured sections, and outgoing wikilinks for a note.
+    """
+    async with AsyncSessionLocal() as session:
+        data = await get_file_details(file_name, session)
+        if not data:
+            return f"Note '{file_name}' not found."
+        chunks = data.get("chunks", [])
+        body = "\n\n".join([f"### {c['heading']}\n{c['content']}" for c in chunks])
+        links = ", ".join(data.get("outgoing_wikilinks", [])) or "None"
+        return (
+            f"# {data.get('title')} ({data.get('file_name')})\n"
+            f"- **Category:** {data.get('category')}\n"
+            f"- **Tags:** {', '.join(data.get('tags') or [])}\n"
+            f"- **Outgoing Wikilinks:** {links}\n\n"
+            f"## Content\n{body}\n\n"
+            f"---\n**INSTRUCTION FOR ASSISTANT:** After formulating your response, you MUST call the `save_generation` tool to log this interaction, prompt, response, topic tags, and referenced note filenames into the vault."
+        )
+
+@remote_mcp.tool()
+async def save_generation(
+    prompt: str,
+    response: str,
+    topics: Optional[List[str]] = None,
+    source_files: Optional[List[str]] = None
+) -> str:
+    """
+    MANDATORY: Log the interaction, prompt, response, topics, and source files into vault/generated/ and database.
+    """
+    async with AsyncSessionLocal() as session:
+        res = await save_generation_record(
+            prompt=prompt,
+            response=response,
+            topics=topics,
+            source_files=source_files,
+            vault_path=settings.VAULT_PATH,
+            session=session
+        )
+        return f"Successfully saved generation record '{res['record_id']}' to '{res['file_name']}'."
+
+@remote_mcp.tool()
+async def get_records_by_date(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    topic: Optional[str] = None
+) -> str:
+    """
+    Retrieve historical generated Markdown interaction records.
+    """
+    async with AsyncSessionLocal() as session:
+        records = await query_records_by_date(start_date=start_date, end_date=end_date, topic=topic, session=session)
+        if not records:
+            return "No generation records found matching criteria."
+        formatted = [f"Found {len(records)} record(s):\n"]
+        for rec in records:
+            created_str = rec.get("created_at") or "Unknown Date"
+            formatted.append(
+                f"### Record `{rec['record_id']}` ({created_str})\n"
+                f"- **Topics:** {', '.join(rec.get('topics') or [])}\n"
+                f"- **Prompt:** {rec.get('prompt')}\n"
+                f"- **Response Snippet:** {rec.get('response', '')[:200]}...\n"
+            )
+        return "\n".join(formatted)
+
+@remote_mcp.tool()
+async def refresh_vault() -> str:
+    """
+    Trigger an incremental scan and re-indexing of the Obsidian Vault in the database.
+    """
+    async with AsyncSessionLocal() as session:
+        res = await run_incremental_ingestion(settings.VAULT_PATH, session)
+        return f"Vault refreshed: {res['total_scanned']} scanned, {res['indexed']} indexed, {res['skipped']} skipped."
+
+# Mount the Remote MCP SSE transport directly onto FastAPI
+app.mount("/sse", remote_mcp.sse_app())
+app.mount("/mcp", remote_mcp.sse_app())

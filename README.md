@@ -117,17 +117,21 @@ Use this approach for lightweight, instant local development without installing 
 
 ---
 
-### 2. Connect Claude Desktop via MCP (With 3-Tier Access Rights)
+### ⚡ 1-Click Claude Desktop MCP Setup (Automated)
 
-1. Install MCP dependencies:
-   ```bash
-   pip install -r mcp-server/requirements.txt
-   ```
-2. Open your Claude Desktop configuration file:
-   - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-   - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - **Linux:** `~/.config/Claude/claude_desktop_config.json`
-3. Add the 3 segregated MCP connectors (or pick whichever partition you want to access):
+Anyone who clones this repository can configure Claude Desktop in **1 second with a single command** (works on Windows, macOS, and Linux):
+
+```bash
+python install_mcp.py
+```
+
+*This script automatically detects your OS, finds your `claude_desktop_config.json`, and installs all 3 live cloud-connected MCP partitions without any manual file editing.*
+
+---
+
+### 🛠️ Manual Configuration (Alternative)
+
+If you prefer to configure Claude Desktop manually, open your `claude_desktop_config.json` and add:
 
 ```json
 {
@@ -135,7 +139,7 @@ Use this approach for lightweight, instant local development without installing 
     "wiki-skincare-science": {
       "command": "python",
       "args": [
-        "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
+        "<PATH_TO_CLONED_REPO>/mcp-server/server.py"
       ],
       "env": {
         "BACKEND_API_URL": "https://llm-wiki-kar.onrender.com",
@@ -145,7 +149,7 @@ Use this approach for lightweight, instant local development without installing 
     "wiki-complexion-bases": {
       "command": "python",
       "args": [
-        "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
+        "<PATH_TO_CLONED_REPO>/mcp-server/server.py"
       ],
       "env": {
         "BACKEND_API_URL": "https://llm-wiki-kar.onrender.com",
@@ -155,7 +159,7 @@ Use this approach for lightweight, instant local development without installing 
     "wiki-eyes-lips-culture": {
       "command": "python",
       "args": [
-        "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
+        "<PATH_TO_CLONED_REPO>/mcp-server/server.py"
       ],
       "env": {
         "BACKEND_API_URL": "https://llm-wiki-kar.onrender.com",
