@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "knowledge-wiki": {
+      "command": "python",
+      "args": [
+        "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
+      ],
+      "env": {
+        "BACKEND_API_URL": "http://localhost:8000"
+      }
+    }
+  }
+}
