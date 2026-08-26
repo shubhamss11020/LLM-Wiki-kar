@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 # Determine database engine
 try:
-    engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
+    engine = create_async_engine(settings.async_database_url, echo=False, future=True)
 except Exception as e:
     logger.warning(f"Could not initialize PostgreSQL engine ({e}), falling back to SQLite.")
     engine = create_async_engine(settings.SQLITE_FALLBACK_URL, echo=False, future=True)

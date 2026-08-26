@@ -16,7 +16,19 @@ class Settings(BaseSettings):
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "vault"))
     )
     
-    DEFAULT_TIMEZONE: str = "Asia/Kolkata"
+    @property
+    def async_database_url(self) -> str:
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        # Strip sslmode=require if present for asyncpg compatibility
+        if "?sslmode=" in url:
+            url = url.split("?sslmode=")[0]
+        elif "&sslmode=" in url:
+            url = url.split("&sslmode=")[0]
+        return url
 
     class Config:
         env_file = ".env"
