@@ -40,6 +40,10 @@ def install():
     if "mcpServers" not in current_config:
         current_config["mcpServers"] = {}
 
+    # Clean up any legacy server entries
+    current_config["mcpServers"].pop("karpathy-llm-wiki", None)
+    current_config["mcpServers"].pop("knowledge-wiki", None)
+
     backend_url = "https://llm-wiki-kar.onrender.com"
 
     # Add 3 Segregated Partition Servers

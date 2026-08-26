@@ -6,6 +6,8 @@ from fastapi import FastAPI, Depends, HTTPException, Query, Header, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
+from backend.app.auth.open_oauth import OpenOAuthProvider, create_auth_settings
 
 from backend.app.config import settings
 from backend.app.database.connection import init_db, get_db, AsyncSessionLocal
@@ -16,9 +18,14 @@ from backend.app.services.records import save_generation_record, query_records_b
 logger = logging.getLogger(__name__)
 
 # --- Native Remote MCP Server (SSE & Streamable HTTP Transport) ---
+_oauth_provider = OpenOAuthProvider()
+_auth_settings = create_auth_settings(settings.SERVER_URL)
+
 remote_mcp = MCPServer(
     name="knowledge-wiki-remote",
-    instructions="Comprehensive knowledge base covering 250+ notes across skincare actives, formulations, guides, routines, and comparisons. Always use search_wiki to retrieve facts, and call save_generation to log responses into the vault."
+    instructions="Comprehensive knowledge base covering 250+ notes across skincare actives, formulations, guides, routines, and comparisons. Always use search_wiki to retrieve facts, and call save_generation to log responses into the vault.",
+    auth_server_provider=_oauth_provider,
+    auth=_auth_settings,
 )
 
 @remote_mcp.tool()
@@ -292,6 +299,8 @@ async def create_generation_record(
     return res
 
 # --- Mount Remote MCP Endpoints ---
-# Streamable HTTP (New Anthropic standard) and SSE (Server-Sent Events)
-app.mount("/mcp", remote_mcp.streamable_http_app())
-app.mount("/sse", remote_mcp.sse_app())
+# Streamable HTTP (New Anthropic standard) with OAuth 2.1 endpoints mounted at root
+app.mount("/", remote_mcp.streamable_http_app(
+    transport_security=TransportSecuritySettings(allowed_hosts=["*"], enable_dns_rebinding_protection=False)
+))
+

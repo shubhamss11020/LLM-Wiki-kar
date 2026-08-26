@@ -16,6 +16,12 @@ class Settings(BaseSettings):
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "vault"))
     )
     
+    # Public server URL (used as OAuth issuer)
+    SERVER_URL: str = os.getenv(
+        "SERVER_URL",
+        "https://llm-wiki-kar.onrender.com"
+    )
+    
     @property
     def async_database_url(self) -> str:
         url = self.DATABASE_URL

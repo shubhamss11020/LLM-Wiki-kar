@@ -143,10 +143,49 @@ async def tool_save_generation(
         payload = {
             "prompt": prompt,
             "response": response,
-            "topics": topics or ["llm"],
+            "topics": topics or ["skincare"],
             "source_files": source_files or []
         }
         res = await _http_post("/api/records", payload)
+        
+        # Dual-write: also save to local vault/generated/ on disk for Obsidian
+        try:
+            import datetime, pytz, json
+            local_vault = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "vault"))
+            if os.path.exists(local_vault):
+                tz = pytz.timezone("Asia/Kolkata")
+                now = datetime.datetime.now(tz)
+                date_dir = os.path.join(local_vault, "generated", str(now.year), f"{now.month:02d}", f"{now.day:02d}")
+                os.makedirs(date_dir, exist_ok=True)
+                topic_slug = ((topics[0] if topics else "skincare")).replace(" ", "-").lower()
+                rec_id = res.get("record_id", "rec-local")
+                local_file_name = f"{now.strftime('%Y%m%dT%H%M%S%z')}_{topic_slug}_{rec_id}.md"
+                full_local_path = os.path.join(date_dir, local_file_name)
+                
+                sources_str = "\n".join([f"- [[{s}]]" for s in (source_files or [])]) or "- None"
+                md_content = f"""---
+id: {rec_id}
+created: {now.isoformat()}
+topics: {json.dumps(topics or ['skincare'])}
+sources: {json.dumps(source_files or [])}
+---
+
+# Generation Record: {now.strftime('%Y-%m-%d %H:%M:%S')}
+
+## Prompt
+{prompt}
+
+## Referenced Sources
+{sources_str}
+
+## Generated Response
+{response}
+"""
+                with open(full_local_path, "w", encoding="utf-8") as f:
+                    f.write(md_content)
+        except Exception:
+            pass
+
         return (
             f"Successfully recorded generation!\n"
             f"- **Record ID:** `{res['record_id']}`\n"
