@@ -6,7 +6,15 @@ A persistent, local-first LLM-maintained knowledge wiki and retrieval engine. It
 - **Obsidian Wiki (`vault/`)**: Fully connected, agent-maintained Markdown notes in `vault/` with rich YAML frontmatter and bidirectional `[[wikilinks]]`.
 - **Operating Schema (`AGENTS.md`)**: Strict provenance, ingest workflow, reciprocal linking, and lint maintenance rules.
 
-The backend indexes existing wiki Markdown and persists metadata, semantic chunking, and relational graph links into **PostgreSQL** or local **SQLite**. The **Model Context Protocol (MCP)** server connects Claude Desktop directly to your local wiki with automated timestamped conversation logging in `vault/generated/`.
+The backend indexes existing wiki Markdown and persists metadata, semantic chunking, and relational graph links into **PostgreSQL** or local **SQLite**. The **Model Context Protocol (MCP)** server connects Claude Desktop directly to your local or cloud wiki with automated timestamped conversation logging in `vault/generated/`.
+
+---
+
+## 🌐 Live Deployed Endpoints
+
+- **Live Backend API**: `https://llm-wiki-kar.onrender.com`
+- **Interactive Swagger Documentation**: `https://llm-wiki-kar.onrender.com/docs`
+- **Live Health & Partitions Status**: `https://llm-wiki-kar.onrender.com/health`
 
 ---
 
@@ -130,7 +138,7 @@ Use this approach for lightweight, instant local development without installing 
         "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
       ],
       "env": {
-        "BACKEND_API_URL": "http://localhost:8000",
+        "BACKEND_API_URL": "https://llm-wiki-kar.onrender.com",
         "WIKI_API_KEY": "partition-1-skincare-key"
       }
     },
@@ -140,7 +148,7 @@ Use this approach for lightweight, instant local development without installing 
         "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
       ],
       "env": {
-        "BACKEND_API_URL": "http://localhost:8000",
+        "BACKEND_API_URL": "https://llm-wiki-kar.onrender.com",
         "WIKI_API_KEY": "partition-2-complexion-key"
       }
     },
@@ -150,7 +158,7 @@ Use this approach for lightweight, instant local development without installing 
         "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
       ],
       "env": {
-        "BACKEND_API_URL": "http://localhost:8000",
+        "BACKEND_API_URL": "https://llm-wiki-kar.onrender.com",
         "WIKI_API_KEY": "partition-3-eyeslips-key"
       }
     }

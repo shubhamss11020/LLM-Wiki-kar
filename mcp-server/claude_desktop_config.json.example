@@ -6,7 +6,7 @@
         "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
       ],
       "env": {
-        "BACKEND_API_URL": "http://localhost:8000",
+        "BACKEND_API_URL": "https://llm-wiki-kar.onrender.com",
         "WIKI_API_KEY": "partition-1-skincare-key"
       }
     },
@@ -16,7 +16,7 @@
         "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
       ],
       "env": {
-        "BACKEND_API_URL": "http://localhost:8000",
+        "BACKEND_API_URL": "https://llm-wiki-kar.onrender.com",
         "WIKI_API_KEY": "partition-2-complexion-key"
       }
     },
@@ -26,7 +26,7 @@
         "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
       ],
       "env": {
-        "BACKEND_API_URL": "http://localhost:8000",
+        "BACKEND_API_URL": "https://llm-wiki-kar.onrender.com",
         "WIKI_API_KEY": "partition-3-eyeslips-key"
       }
     }
