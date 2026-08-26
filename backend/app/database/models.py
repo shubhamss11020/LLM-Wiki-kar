@@ -14,6 +14,7 @@ class FileModel(Base):
     file_name = Column(String(255), nullable=False, index=True)
     content_hash = Column(String(64), nullable=False, index=True) # SHA-256
     category = Column(String(128), nullable=False, index=True)
+    partition = Column(Integer, default=1, nullable=False, index=True) # 1: Skincare, 2: Complexion/Bases, 3: Eyes/Lips/Culture
     title = Column(String(512), nullable=True)
     tags = Column(JSON, default=list) # List of tag strings
     source_refs = Column(JSON, default=list)

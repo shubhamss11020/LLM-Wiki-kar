@@ -48,6 +48,7 @@ async def run_incremental_ingestion(vault_path: str, session: AsyncSession) -> D
             # Update existing file record
             db_file.content_hash = current_hash
             db_file.category = item["category"]
+            db_file.partition = parsed["partition"]
             db_file.title = parsed["title"]
             db_file.tags = parsed["tags"]
             db_file.source_refs = parsed["source_refs"]
@@ -66,6 +67,7 @@ async def run_incremental_ingestion(vault_path: str, session: AsyncSession) -> D
                 file_name=item["file_name"],
                 content_hash=current_hash,
                 category=item["category"],
+                partition=parsed["partition"],
                 title=parsed["title"],
                 tags=parsed["tags"],
                 source_refs=parsed["source_refs"],

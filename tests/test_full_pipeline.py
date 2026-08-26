@@ -58,6 +58,21 @@ async def test_full_flow():
         print(f"[PASS] Query records returned {len(records)} record(s). Latest ID: {records[0]['record_id']}")
         assert len(records) > 0, "Saved generation record must be queryable!"
 
+        print("\n--- 8. Testing 3-Tier Partition Access Rights (RBAC) ---")
+        # Partition 1 (Skincare) querying Foundation Formulations
+        p1_leak = await get_file_details("Foundation Formulations.md", session, allowed_partitions=[1])
+        assert p1_leak is None, "Partition 1 MUST NOT have access to Partition 2 Foundation Formulations!"
+        
+        # Partition 2 (Complexion) querying Foundation Formulations
+        p2_access = await get_file_details("Foundation Formulations.md", session, allowed_partitions=[2])
+        assert p2_access is not None, "Partition 2 MUST have access to Foundation Formulations!"
+
+        # Partition 3 (Eyes/Lips) querying Lipstick
+        p3_access = await get_file_details("Lipstick Formulations.md", session, allowed_partitions=[3])
+        assert p3_access is not None, "Partition 3 MUST have access to Lipstick Formulations!"
+
+        print("[PASS] Strict 3-Partition isolation verified successfully.")
+
     print("\n========================================================")
     print("ALL PIPELINE TESTS PASSED SUCCESSFULLY!")
     print("========================================================")

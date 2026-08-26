@@ -1,12 +1,33 @@
 {
   "mcpServers": {
-    "knowledge-wiki": {
+    "wiki-skincare-science": {
       "command": "python",
       "args": [
         "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
       ],
       "env": {
-        "BACKEND_API_URL": "http://localhost:8000"
+        "BACKEND_API_URL": "http://localhost:8000",
+        "WIKI_API_KEY": "partition-1-skincare-key"
+      }
+    },
+    "wiki-complexion-bases": {
+      "command": "python",
+      "args": [
+        "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
+      ],
+      "env": {
+        "BACKEND_API_URL": "http://localhost:8000",
+        "WIKI_API_KEY": "partition-2-complexion-key"
+      }
+    },
+    "wiki-eyes-lips-culture": {
+      "command": "python",
+      "args": [
+        "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
+      ],
+      "env": {
+        "BACKEND_API_URL": "http://localhost:8000",
+        "WIKI_API_KEY": "partition-3-eyeslips-key"
       }
     }
   }

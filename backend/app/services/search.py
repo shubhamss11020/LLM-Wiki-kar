@@ -7,6 +7,7 @@ async def search_knowledge_base(
     query: str,
     session: AsyncSession,
     category: Optional[str] = None,
+    allowed_partitions: Optional[List[int]] = None,
     limit: int = 5
 ) -> List[Dict[str, Any]]:
     """
@@ -14,6 +15,7 @@ async def search_knowledge_base(
     1. Chunk content & headings
     2. File titles & file names
     3. Category and tags
+    Enforces strict partition-based access control.
     """
     terms = [term.strip().lower() for term in query.split() if len(term.strip()) > 1]
     if not terms:
@@ -38,6 +40,9 @@ async def search_knowledge_base(
         .join(FileModel, ChunkModel.file_id == FileModel.id)
         .where(or_(*conditions))
     )
+
+    if allowed_partitions is not None:
+        stmt = stmt.where(FileModel.partition.in_(allowed_partitions))
 
     if category:
         stmt = stmt.where(FileModel.category.ilike(f"%{category}%"))
@@ -73,6 +78,7 @@ async def search_knowledge_base(
             "file_name": file.file_name,
             "title": file.title or file.file_name,
             "category": file.category,
+            "partition": file.partition,
             "tags": file.tags,
             "heading": chunk.heading,
             "chunk_index": chunk.chunk_index,
@@ -88,9 +94,14 @@ async def search_knowledge_base(
     return sorted_list[:limit]
 
 
-async def get_file_details(file_identifier: str, session: AsyncSession) -> Optional[Dict[str, Any]]:
+async def get_file_details(
+    file_identifier: str, 
+    session: AsyncSession,
+    allowed_partitions: Optional[List[int]] = None
+) -> Optional[Dict[str, Any]]:
     """
     Retrieves full content, chunks, and relationships for a specific file by ID or filename.
+    Enforces partition access rights.
     """
     stmt = select(FileModel).where(
         or_(
@@ -99,6 +110,9 @@ async def get_file_details(file_identifier: str, session: AsyncSession) -> Optio
             FileModel.id == (int(file_identifier) if file_identifier.isdigit() else -1)
         )
     )
+    if allowed_partitions is not None:
+        stmt = stmt.where(FileModel.partition.in_(allowed_partitions))
+
     result = await session.execute(stmt)
     file = result.scalar_one_or_none()
     if not file:

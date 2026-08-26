@@ -12,15 +12,22 @@ import httpx
 from typing import Optional, List, Dict, Any
 
 BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
+WIKI_API_KEY = os.getenv("WIKI_API_KEY", "")
+
+def _get_headers() -> dict:
+    headers = {}
+    if WIKI_API_KEY:
+        headers["X-API-Key"] = WIKI_API_KEY
+    return headers
 
 async def _http_post(endpoint: str, data: dict) -> dict:
-    async with httpx.AsyncClient(base_url=BACKEND_API_URL, timeout=15.0) as client:
+    async with httpx.AsyncClient(base_url=BACKEND_API_URL, timeout=15.0, headers=_get_headers()) as client:
         resp = await client.post(endpoint, json=data)
         resp.raise_for_status()
         return resp.json()
 
 async def _http_get(endpoint: str, params: dict = None) -> dict:
-    async with httpx.AsyncClient(base_url=BACKEND_API_URL, timeout=15.0) as client:
+    async with httpx.AsyncClient(base_url=BACKEND_API_URL, timeout=15.0, headers=_get_headers()) as client:
         resp = await client.get(endpoint, params=params)
         resp.raise_for_status()
         return resp.json()

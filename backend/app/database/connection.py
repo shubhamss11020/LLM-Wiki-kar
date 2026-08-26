@@ -20,12 +20,18 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
+from sqlalchemy import text
+
 async def init_db():
     """Initializes the database schema with automatic SQLite fallback."""
     global engine, AsyncSessionLocal
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            try:
+                await conn.execute(text("ALTER TABLE files ADD COLUMN IF NOT EXISTS partition INTEGER DEFAULT 1;"))
+            except Exception:
+                pass
         logger.info("Database tables initialized successfully.")
     except Exception as e:
         logger.warning(f"Could not connect to database ({e}), attempting fallback to SQLite.")

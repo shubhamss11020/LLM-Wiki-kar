@@ -37,13 +37,40 @@ class RecordCreateRequest(BaseModel):
     source_files: Optional[List[str]] = None
     timezone: Optional[str] = "Asia/Kolkata"
 
+from fastapi import FastAPI, Depends, HTTPException, Query, Header
+
+def resolve_allowed_partitions(x_api_key: Optional[str] = Header(None)) -> Optional[List[int]]:
+    """
+    Resolves client API Key to strictly allowed domain partitions:
+    - Partition 1: Skincare Actives & Dermatological Science
+    - Partition 2: Complexion, Bases & Formulations
+    - Partition 3: Lips, Eyes, Climate Wear & Cultural Guides
+    """
+    if not x_api_key:
+        return None # Defaults to master/full access if no key is provided
+    key_low = x_api_key.lower().strip()
+    if any(k in key_low for k in ["part1", "partition1", "tier1", "skincare"]):
+        return [1]
+    elif any(k in key_low for k in ["part2", "partition2", "tier2", "complexion", "base"]):
+        return [2]
+    elif any(k in key_low for k in ["part3", "partition3", "tier3", "eyeslips", "culture"]):
+        return [3]
+    elif any(k in key_low for k in ["admin", "master"]):
+        return [1, 2, 3]
+    return [1, 2, 3]
+
 # --- Endpoints ---
 @app.get("/health")
 async def health_check():
     return {
         "status": "healthy",
         "project": settings.PROJECT_NAME,
-        "vault_path": settings.VAULT_PATH
+        "vault_path": settings.VAULT_PATH,
+        "partitions": {
+            "1": "Skincare Actives & Dermatological Science",
+            "2": "Complexion, Bases & Formulations",
+            "3": "Lips, Eyes, Climate Wear & Cultural Guides"
+        }
     }
 
 @app.post("/api/ingest")
@@ -59,26 +86,35 @@ async def trigger_ingestion(session: AsyncSession = Depends(get_db)):
     return result
 
 @app.post("/api/search")
-async def search_wiki(req: SearchRequest, session: AsyncSession = Depends(get_db)):
+async def search_wiki(
+    req: SearchRequest, 
+    session: AsyncSession = Depends(get_db),
+    allowed_partitions: Optional[List[int]] = Depends(resolve_allowed_partitions)
+):
     """
-    Searches the knowledge base across chunks, titles, and tags.
+    Searches the knowledge base across chunks, titles, and tags with partition RBAC.
     """
     results = await search_knowledge_base(
         query=req.query,
         session=session,
         category=req.category,
+        allowed_partitions=allowed_partitions,
         limit=req.limit
     )
-    return {"query": req.query, "count": len(results), "results": results}
+    return {"query": req.query, "count": len(results), "allowed_partitions": allowed_partitions, "results": results}
 
 @app.get("/api/notes/{file_name}")
-async def get_note_by_name(file_name: str, session: AsyncSession = Depends(get_db)):
+async def get_note_by_name(
+    file_name: str, 
+    session: AsyncSession = Depends(get_db),
+    allowed_partitions: Optional[List[int]] = Depends(resolve_allowed_partitions)
+):
     """
-    Retrieves full content, chunks, and backlinks for a specific note.
+    Retrieves full content, chunks, and backlinks for a specific note with partition check.
     """
-    file_info = await get_file_details(file_name, session)
+    file_info = await get_file_details(file_name, session, allowed_partitions=allowed_partitions)
     if not file_info:
-        raise HTTPException(status_code=404, detail=f"Note '{file_name}' not found.")
+        raise HTTPException(status_code=404, detail=f"Note '{file_name}' not found or access restricted by partition policy.")
     
     relationships = await get_related_notes(file_name, session)
     file_info["relationships"] = relationships

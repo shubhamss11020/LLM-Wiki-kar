@@ -109,7 +109,7 @@ Use this approach for lightweight, instant local development without installing 
 
 ---
 
-### 2. Connect Claude Desktop via MCP
+### 2. Connect Claude Desktop via MCP (With 3-Tier Access Rights)
 
 1. Install MCP dependencies:
    ```bash
@@ -119,36 +119,51 @@ Use this approach for lightweight, instant local development without installing 
    - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
    - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
    - **Linux:** `~/.config/Claude/claude_desktop_config.json`
-3. Add the `knowledge-wiki` server entry, replacing `<ABSOLUTE_PATH_TO_REPO>` with the absolute path to where you cloned this repository:
+3. Add the 3 segregated MCP connectors (or pick whichever partition you want to access):
 
 ```json
 {
   "mcpServers": {
-    "knowledge-wiki": {
+    "wiki-skincare-science": {
       "command": "python",
       "args": [
         "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
       ],
       "env": {
-        "BACKEND_API_URL": "http://localhost:8000"
+        "BACKEND_API_URL": "http://localhost:8000",
+        "WIKI_API_KEY": "partition-1-skincare-key"
+      }
+    },
+    "wiki-complexion-bases": {
+      "command": "python",
+      "args": [
+        "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
+      ],
+      "env": {
+        "BACKEND_API_URL": "http://localhost:8000",
+        "WIKI_API_KEY": "partition-2-complexion-key"
+      }
+    },
+    "wiki-eyes-lips-culture": {
+      "command": "python",
+      "args": [
+        "<ABSOLUTE_PATH_TO_REPO>/mcp-server/server.py"
+      ],
+      "env": {
+        "BACKEND_API_URL": "http://localhost:8000",
+        "WIKI_API_KEY": "partition-3-eyeslips-key"
       }
     }
   }
 }
 ```
 
-> **Path Formatting Examples:**
-> - **Windows:** `"C:\\Projects\\llm-wiki\\mcp-server\\server.py"` (use double backslashes `\\` or forward slashes `/`)
-> - **macOS / Linux:** `"/Users/username/Projects/llm-wiki/mcp-server/server.py"`
+#### 🔒 Partition Access Policies:
+- **`wiki-skincare-science` (Partition 1)**: Strictly restricted to 76 notes on chemical actives, dermatology science, and skin health. Cannot read foundations, lipsticks, or festive makeup.
+- **`wiki-complexion-bases` (Partition 2)**: Strictly restricted to 89 notes on foundations, powders, highlighters, and shade matching. Cannot read pure skincare actives or eye/lip products.
+- **`wiki-eyes-lips-culture` (Partition 3)**: Strictly restricted to 92 notes on lipsticks, kajal, waterproof climate survival kits, and festive looks.
 
-4. **Restart Claude Desktop**.
-
-Claude Desktop will display the tool icon with 5 available tools:
-- `search_wiki(query, category, limit)`: Semantic concept and keyword search across 250+ notes.
-- `get_file(file_name)`: Retrieve full Markdown content, headings, and backlinks for any note.
-- `save_generation(prompt, response, topics, source_files)`: Persist interaction into `vault/generated/` and database.
-- `get_records_by_date(start_date, end_date, topic)`: Query historical conversation logs.
-- `refresh_vault()`: Trigger incremental scan and re-indexing of the vault.
+4. **Restart Claude Desktop**. Claude Desktop will display the tool icon for each connector with strict data boundary enforcement!
 
 ---
 
