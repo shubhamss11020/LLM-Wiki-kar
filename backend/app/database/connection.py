@@ -29,7 +29,7 @@ async def init_db():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
             try:
-                await conn.execute(text("ALTER TABLE files ADD COLUMN IF NOT EXISTS partition INTEGER DEFAULT 1;"))
+                await conn.execute(text("ALTER TABLE files ADD COLUMN partition INTEGER DEFAULT 1;"))
             except Exception:
                 pass
         logger.info("Database tables initialized successfully.")
@@ -39,6 +39,10 @@ async def init_db():
         AsyncSessionLocal.configure(bind=engine)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            try:
+                await conn.execute(text("ALTER TABLE files ADD COLUMN partition INTEGER DEFAULT 1;"))
+            except Exception:
+                pass
         logger.info("SQLite fallback tables initialized successfully.")
 
 async def get_db():
