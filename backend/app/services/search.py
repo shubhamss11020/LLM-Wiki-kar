@@ -77,7 +77,8 @@ async def search_knowledge_base(
     )
 
     if allowed_partitions is not None:
-        stmt = stmt.where(FileModel.partition.in_(allowed_partitions))
+        effective_partitions = list(set(allowed_partitions + [0]))
+        stmt = stmt.where(FileModel.partition.in_(effective_partitions))
 
     if category:
         stmt = stmt.where(FileModel.category.ilike(f"%{category}%"))
@@ -189,7 +190,8 @@ async def get_file_details(
         )
     )
     if allowed_partitions is not None:
-        stmt = stmt.where(FileModel.partition.in_(allowed_partitions))
+        effective_partitions = list(set(allowed_partitions + [0]))
+        stmt = stmt.where(FileModel.partition.in_(effective_partitions))
 
     result = await session.execute(stmt)
     file = result.scalar_one_or_none()
