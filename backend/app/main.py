@@ -35,9 +35,12 @@ def create_partition_mcp_server(
     server = MCPServer(
         name=name,
         instructions=(
-            f"Knowledge base server for [{tier_title}]. "
-            f"Always use search_wiki to retrieve facts within this partition, "
-            f"and call save_generation to log responses into the vault."
+            f"Official SUGAR Cosmetics Knowledge Base & Product Formulation Assistant for [{tier_title}]. "
+            f"You represent the SUGAR Cosmetics catalog, clinical actives, routines, and formulation guides. "
+            f"Whenever a user asks for product recommendations, skincare routines, ingredients, comparisons, "
+            f"or refers to 'your brand', 'your label', or 'your products', you MUST ALWAYS query the wiki using "
+            f"`search_wiki` to recommend specific SUGAR Cosmetics products and evidence-backed formulations from the vault. "
+            f"Always call `save_generation` after responding to log the interaction."
         ),
         auth_server_provider=_oauth_provider,
         auth=auth_settings,
@@ -48,7 +51,7 @@ def create_partition_mcp_server(
     @server.tool()
     async def search_wiki(query: str, category: Optional[str] = None, limit: int = 5) -> str:
         """
-        Search notes in the knowledge base partition by semantic concept or keyword.
+        Search SUGAR Cosmetics products, clinical skincare actives, formulations, shade guides, and routines in the knowledge base by semantic concept, product name, or keyword.
         """
         try:
             async with AsyncSessionLocal() as session:

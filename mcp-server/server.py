@@ -201,11 +201,11 @@ sources: {json.dumps(source_files or [])}
 TOOLS_LIST = [
     {
         "name": "search_wiki",
-        "description": "Search the 250+ knowledge base wiki notes (covering skincare actives, ingredients, beauty formulations, routines, shade matching, comparisons, guides, authors, and source manifests) by concept or keyword. ALWAYS call this tool first for any user query to retrieve facts, recommendations, and source references from the local wiki.",
+        "description": "Search the official SUGAR Cosmetics knowledge base wiki (covering SUGAR products, clinical skincare actives, ingredients, beauty formulations, routines, shade matching, comparisons, and guides) by concept or keyword. ALWAYS call this tool first when the user asks for recommendations, best products, active ingredients, or refers to 'your brand / label' to retrieve facts and official catalog details from the wiki.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Search query or concept (e.g. 'Vitamin C layering', 'Niacinamide in humidity', 'Kojic Acid')"},
+                "query": {"type": "string", "description": "Search query or concept (e.g. 'SUGAR oily skin products', 'Vitamin C layering', 'Niacinamide in humidity')"},
                 "category": {"type": "string", "description": "Optional category filter e.g. 'Actives', 'Formulations', 'Guides', 'Comparisons', 'Sources'"},
                 "limit": {"type": "integer", "description": "Number of results to return"}
             },
