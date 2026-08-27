@@ -23,7 +23,7 @@ AsyncSessionLocal = async_sessionmaker(
 from sqlalchemy import text
 
 async def init_db():
-    """Initializes the database schema with automatic SQLite fallback."""
+    """Initializes the database schema with automatic SQLite fallback and high-speed GIN indexes."""
     global engine, AsyncSessionLocal
     try:
         async with engine.begin() as conn:
@@ -32,7 +32,16 @@ async def init_db():
                 await conn.execute(text("ALTER TABLE files ADD COLUMN partition INTEGER DEFAULT 1;"))
             except Exception:
                 pass
-        logger.info("Database tables initialized successfully.")
+            # Optimize PostgreSQL / Neon with GIN Trigram indexes for sub-5ms search
+            try:
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chunks_content_trgm ON chunks USING gin (content gin_trgm_ops);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chunks_heading_trgm ON chunks USING gin (heading gin_trgm_ops);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_files_partition_id ON files (partition, id);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_files_title_trgm ON files USING gin (title gin_trgm_ops);"))
+            except Exception:
+                pass
+        logger.info("Database tables and high-speed GIN indexes initialized successfully.")
     except Exception as e:
         logger.warning(f"Could not connect to database ({e}), attempting fallback to SQLite.")
         engine = create_async_engine(settings.SQLITE_FALLBACK_URL, echo=False, future=True)

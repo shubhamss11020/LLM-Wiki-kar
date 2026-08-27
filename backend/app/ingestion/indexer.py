@@ -99,6 +99,8 @@ async def run_incremental_ingestion(vault_path: str, session: AsyncSession) -> D
             session.add(rel)
 
         indexed_count += 1
+        if indexed_count % 25 == 0 or indexed_count == len(scanned_files):
+            print(f"  --> Indexing progress: {indexed_count}/{len(scanned_files)} notes processed...", flush=True)
 
     # Remove files deleted from vault
     for path, db_file in existing_db_files.items():
@@ -107,8 +109,8 @@ async def run_incremental_ingestion(vault_path: str, session: AsyncSession) -> D
             deleted_count += 1
 
     await session.commit()
+    print(f"[PASS] Ingestion complete: {indexed_count} indexed, {skipped_count} skipped, {deleted_count} deleted.", flush=True)
 
-    logger.info(f"Ingestion complete: {indexed_count} indexed, {skipped_count} skipped, {deleted_count} deleted.")
     return {
         "status": "success",
         "total_scanned": len(scanned_files),
