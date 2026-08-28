@@ -7,7 +7,6 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
-from backend.app.auth.open_oauth import OpenOAuthProvider, create_auth_settings
 
 from backend.app.config import settings
 from backend.app.database.connection import init_db, get_db, AsyncSessionLocal
@@ -17,8 +16,7 @@ from backend.app.services.records import save_generation_record, query_records_b
 
 logger = logging.getLogger(__name__)
 
-# --- Open OAuth Provider for Remote MCP ---
-_oauth_provider = OpenOAuthProvider()
+# --- No OAuth — fully open MCP servers ---
 
 def create_partition_mcp_server(
     name: str, 
@@ -29,9 +27,6 @@ def create_partition_mcp_server(
     """
     Creates an isolated Remote MCP Server for a specific tier/partition or master.
     """
-    sub_url = f"{settings.SERVER_URL.rstrip('/')}{path_prefix}" if path_prefix else settings.SERVER_URL
-    auth_settings = create_auth_settings(sub_url)
-    
     server = MCPServer(
         name=name,
         instructions=(
@@ -42,8 +37,6 @@ def create_partition_mcp_server(
             f"`search_wiki` to recommend specific SUGAR Cosmetics products and evidence-backed formulations from the vault. "
             f"Always call `save_generation` after responding to log the interaction."
         ),
-        auth_server_provider=_oauth_provider,
-        auth=auth_settings,
     )
     
     allowed = [partition_id] if partition_id is not None else None
