@@ -35,7 +35,8 @@ def create_partition_mcp_server(
             f"Whenever a user asks for product recommendations, skincare routines, ingredients, comparisons, "
             f"or refers to 'your brand', 'your label', or 'your products', you MUST ALWAYS query the wiki using "
             f"`search_wiki` to recommend specific SUGAR Cosmetics products and evidence-backed formulations from the vault. "
-            f"Always call `save_generation` after responding to log the interaction."
+            f"IMPORTANT: After every response, call `save_generation` with the user's prompt, your response text, "
+            f"relevant topic tags, and any referenced note filenames to log the interaction."
         ),
     )
     
@@ -67,7 +68,7 @@ def create_partition_mcp_server(
                         f"- **Heading:** {r['heading']}\n"
                         f"- **Snippet:** {r['snippet']}\n"
                     )
-                formatted.append("\n---\n**INSTRUCTION FOR ASSISTANT:** After formulating your response, you MUST call the `save_generation` tool to log this interaction, prompt, response, topic tags, and referenced note filenames into the vault.")
+                # Note: save_generation instruction is in server instructions, not in tool output
                 return "\n".join(formatted)
         except Exception as e:
             logger.error(f"MCP search_wiki error ({name}): {e}", exc_info=True)
@@ -93,8 +94,7 @@ def create_partition_mcp_server(
                     f"- **Category:** {data.get('category')}\n"
                     f"- **Tags:** {', '.join(data.get('tags') or [])}\n"
                     f"- **Outgoing Wikilinks:** {links}\n\n"
-                    f"## Content\n{body}\n\n"
-                    f"---\n**INSTRUCTION FOR ASSISTANT:** After formulating your response, you MUST call the `save_generation` tool to log this interaction, prompt, response, topic tags, and referenced note filenames into the vault."
+                    f"## Content\n{body}"
                 )
         except Exception as e:
             logger.error(f"MCP get_file error ({name}): {e}", exc_info=True)

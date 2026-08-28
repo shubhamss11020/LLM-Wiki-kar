@@ -81,8 +81,35 @@ related:
 
 # Foundation Formulations
 
-Analysis of base makeup formulations tailored for tropical wear, high humidity resilience, and Indian undertone matching (Stick, Cream-to-Powder, Liquid Matte, BB/CC Creams).
+Analysis of base makeup formulations tailored for tropical wear, high humidity resilience, and Indian undertone matching (Stick, Cream-to-Powder, Liquid Dewy, HD Liquid).
+
+## Core Base Products in this Category
+
+| Product Name | Format | Price | Finish | Best Skin Type & Climate |
+|---|---|---|---|---|
+| [[Ace Of Face Foundation Stick]] | Portable Stick | ₹799–₹999 | Natural Matte | All skin types, on-the-go, spot coverage |
+| [[Mettle Cream To Powder Foundation]] | Compact Cream | ₹699–₹999 | Velvet Matte | Oily skin, high humidity & monsoons |
+| [[Ace Of Face Dewy Foundation]] | Liquid Foundation | ₹899–₹1099 | Radiant Glow | Dry, mature, or dehydrated skin |
+| [[SUGAR Primers]] | Gel / Drops | ₹499–₹799 | Poreless Matte / Dewy | Base prep for pore-blurring & hydration |
+
+## Foundation Chemistry for Tropical Climates
+
+1. **Pigment-to-Binder Ratio**: High micro-pigment load enables sheer-to-full coverage with extremely thin film thicknesses (<10 microns), preventing cakey texture and heat slide.
+2. **Phase Inversion (Cream-to-Powder)**: Emulsified volatile silicones evaporate upon skin contact, triggering silica spherical beads to form a dry porous matrix that continually traps sebum.
+3. **Anti-Oxidation Stabilization**: Chelating agents and stabilized antioxidants prevent atmospheric oxygen and sebum fatty acids from darkening pigments (preventing the "orange turn").
+
+## Formula Selection Guide
+
+| Goal / Skin Condition | Recommended Base Formula | Key Pairing |
+|---|---|---|
+| **Oily T-Zone in Monsoon** | [[Mettle Cream To Powder Foundation]] | [[All Set To Go Translucent Powder]] |
+| **Flaky Dry Winter Skin** | [[Ace Of Face Dewy Foundation]] | [[SUGAR Primers|Aquaholic Hydrating Primer]] |
+| **5-Minute Office Rush** | [[Ace Of Face Foundation Stick]] | [[Kohl Of Honour Intense Kajal]] |
+| **Bridal / Festive Photography** | HD Full Coverage + Stick Contour | [[Contour De Force Highlighters & Illuminators]] |
 
 ## Navigation & Hub Links
-- [[Wiki Navigation Index|Wiki Navigation Index]]
+- [[Wiki Navigation Index|index]]
 - [[SUGAR Cosmetics]]
+- [[Indian Undertones & Shade Matching]]
+- [[Monsoon & Humidity-Proof Makeup]]
+- [[Compact Powder & Shine Control]]

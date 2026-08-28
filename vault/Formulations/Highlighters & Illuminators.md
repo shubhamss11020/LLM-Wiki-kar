@@ -55,8 +55,27 @@ related:
 
 # Highlighters & Illuminators
 
-Illuminating formulations designed for radiant, lit-from-within glow suited to warm and deep Indian skin tones (champagne, warm gold, molten bronze).
+Illuminating formulations engineered with ultra-refined, non-gritty micro-pearls to deliver a radiant, lit-from-within glow suited to warm, olive, and deep Indian skin tones (champagne, warm gold, rose gold, molten bronze).
+
+## Core Products in this Category
+
+| Product Name | Format | Price | Finish | Key Shade |
+|---|---|---|---|---|
+| [[Contour De Force Highlighters & Illuminators]] | Baked / Pressed Mini | ₹499–₹799 | Luminous Sheen | 02 Gold Glory / 04 Bronze Bliss |
+| [[Own The Light Liquid Illuminator]] | Liquid Glow Drops | ₹699 | Candlelight Dew | Golden Hour / Bronze Spark |
+| [[Ace Of Face Dewy Foundation]] | Liquid Foundation | ₹899–₹1099 | Glass-Skin Glow | Tone-matched golden radiance |
+
+## Formulation Technology: Micro-Milled Reflective Matrix
+Unlike western highlighters that frequently rely on stark silver glitters (which appear ashy or emphasize pores on Fitzpatrick IV–V complexions), SUGAR illuminators use **surface-treated mica coated with iron oxides and titanium dioxide** to emit warm amber-gold wavelengths.
+
+## Desi Glass Skin Glow Technique
+1. **Hydration Prep**: Mix a drop of [[Contour De Force Highlighters & Illuminators|Liquid Illuminator]] into moisturizer or primer.
+2. **Base**: Apply [[Ace Of Face Dewy Foundation]] with a damp sponge.
+3. **Targeted Accent**: Sweep baked [[Contour De Force Highlighters & Illuminators|Contour De Force Highlighter]] strictly across the high cheekbones, nasal bridge, and cupid's bow.
 
 ## Navigation & Hub Links
-- [[Wiki Navigation Index|Wiki Navigation Index]]
+- [[Wiki Navigation Index|index]]
 - [[SUGAR Cosmetics]]
+- [[Indian Undertones & Shade Matching]]
+- [[Festive & Traditional Looks]]
+- [[Foundation Formulations]]

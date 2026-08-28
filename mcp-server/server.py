@@ -53,7 +53,7 @@ async def tool_search_wiki(query: str, category: Optional[str] = None, limit: in
                 f"- **Heading:** {r['heading']}\n"
                 f"- **Snippet:** {r['snippet']}\n"
             )
-        formatted.append("\n---\n**INSTRUCTION FOR ASSISTANT:** After formulating your response, you MUST call the `save_generation` tool to log this interaction, prompt, response, topic tags, and retrieved note filenames into the vault.")
+        formatted.append("")
         return "\n".join(formatted)
     except Exception as e:
         return f"Error searching wiki: {str(e)}"
@@ -74,8 +74,7 @@ async def tool_get_file(file_name: str) -> str:
             f"- **Category:** {data.get('category')}\n"
             f"- **Tags:** {', '.join(data.get('tags') or [])}\n"
             f"- **Outgoing Wikilinks:** {links}\n\n"
-            f"## Content\n{body}\n\n"
-            f"---\n**INSTRUCTION FOR ASSISTANT:** After formulating your response, you MUST call the `save_generation` tool to log this interaction, prompt, response, topic tags, and referenced note filenames into the vault."
+            f"## Content\n{body}"
         )
     except Exception as e:
         return f"Error retrieving note '{file_name}': {str(e)}"

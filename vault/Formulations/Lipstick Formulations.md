@@ -95,9 +95,34 @@ related:
 ---
 
 # Lipstick Formulations
+ 
+Comprehensive overview of long-wear, smudge-proof, and nourishing lip formulations engineered to resist transfer, prevent feathering in humidity, and flatter Fitzpatrick III–V skin tones.
 
-Comprehensive overview of long-wear, smudge-proof, and nourishing lip formulations (Matte As Hell Crayons, 18-Hour Smudge-Me-Not Liquid Lips, Peptide Glosses, Nude Shade Bible).
+## Core Products in this Category
+
+| Product Name | Format | Price | Finish | Key Feature |
+|---|---|---|---|---|
+| [[Matte As Hell Crayon Lipstick]] | Retractable Crayon | ₹899 | Creamy Matte | 30+ shades mapped to Indian undertones |
+| [[Smudge Me Not Liquid Lipstick]] | Liquid Lip | ₹499–₹699 | Ultra Matte | 18-hour zero transfer through meals |
+| [[Glide Peptide Serum Lipstick]] | Serum Bullet | ₹699–₹899 | Hydrating Satin | Infused with Peptides, Hyaluronic Acid, Squalane |
+| [[Peptide Plumping Gloss Stick]] | Twist-up Stick | ₹499–₹699 | High Gloss | Non-sticky peptide volume enhancement |
+| [[SUGAR POP Lipsticks]] | Bullet & Tints | ₹199–₹299 | Matte / Satin | Budget-friendly Gen Z everyday vibrant colors |
+| [[Tipsy Lips SPF30 Lip Balm & Treatments]] | Twist Stick | ₹199–₹299 | Dewy Sheen | Broad Spectrum SPF 30 anti-pigmentation care |
+
+## Formulation Chemistry
+
+1. **Non-Drying Matte Flexibility**: Unlike traditional mattes that use drying denatured alcohols, [[Matte As Hell Crayon Lipstick]] utilizes Dimethicone and Diisostearyl Malate to form an elastic, breathable polymer net across lip topography.
+2. **Transfer-Proof Seal**: [[Smudge Me Not Liquid Lipstick]] utilizes high volatile solvent evaporation (Isododecane) paired with Trimethylsiloxysilicate to produce a completely budge-proof pigment matrix.
+3. **Active Skincare Infusion**: Modern formulations incorporate Palmitoyl Tripeptides and Sodium Hyaluronate into lipophilic matrices for long-term lip barrier repair.
+
+## Undertone Shade Match Reference
+- **Warm / Golden**: Terracotta, burnt orange, warm peachy nudes, cinnamon browns.
+- **Cool / Bluish**: Berries, plums, blue-toned reds (classic crimson), deep rose.
+- **Neutral**: Dusty rose, classic neutral reds, mauve nudes.
+- **Dusky Skin**: Rich espresso browns, deep berry wines, burnt sienna (avoids chalky grey casts).
 
 ## Navigation & Hub Links
-- [[Wiki Navigation Index|Wiki Navigation Index]]
+- [[Wiki Navigation Index|index]]
 - [[SUGAR Cosmetics]]
+- [[Indian Undertones & Shade Matching]]
+- [[Festive & Traditional Looks]]

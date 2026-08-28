@@ -1,9 +1,30 @@
 import time
 import logging
+import unicodedata
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.database.models import FileModel, ChunkModel, FileRelationshipModel
+
+
+def _normalize_filename(name: str) -> str:
+    """Normalize Unicode characters in filenames for consistent matching.
+    Converts em-dashes to hyphens, smart quotes to straight quotes, etc."""
+    # NFC normalization
+    name = unicodedata.normalize("NFC", name)
+    # Common replacements for characters that get mangled
+    replacements = {
+        "\u2014": "-",   # em-dash → hyphen
+        "\u2013": "-",   # en-dash → hyphen
+        "\u2018": "'",   # left single quote
+        "\u2019": "'",   # right single quote
+        "\u201c": '"',   # left double quote
+        "\u201d": '"',   # right double quote
+        "\u2026": "...", # ellipsis
+    }
+    for old, new in replacements.items():
+        name = name.replace(old, new)
+    return name.strip()
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +73,8 @@ async def search_knowledge_base(
         if now - cached_time < _CACHE_TTL_SECONDS:
             return cached_results
 
-    terms = [term for term in clean_query.split() if len(term) > 1]
+    STOP_WORDS = {"for", "in", "and", "the", "with", "on", "of", "to", "is", "a", "an", "by", "from", "at", "it", "or", "what", "which", "give", "me", "show"}
+    terms = [term for term in clean_query.split() if len(term) > 1 and term not in STOP_WORDS]
     if not terms:
         terms = [clean_query]
 
@@ -83,7 +105,7 @@ async def search_knowledge_base(
     if category:
         stmt = stmt.where(FileModel.category.ilike(f"%{category}%"))
 
-    stmt = stmt.limit(limit * 4) # Over-fetch for accurate ranking & graph scoring
+    stmt = stmt.limit(max(limit * 10, 150)) # Over-fetch ample candidates for accurate ranking across all categories
     result = await session.execute(stmt)
     rows = result.all()
 
@@ -108,38 +130,47 @@ async def search_knowledge_base(
         tags_low = [t.lower() for t in (file.tags or [])]
         cat_low = (file.category or "").lower()
 
-        # 1. Exact matches
+        # 1. Exact phrase matches in title/name
         if clean_query in f_title_low:
-            score += 15
-        elif any(t in f_title_low for t in terms):
-            score += 8
-
+            score += 25
         if clean_query in f_name_low:
-            score += 12
-            
+            score += 20
+
+        # Term matches in title & tags
+        matched_title_terms = sum(1 for t in terms if t in f_title_low or t in f_name_low)
+        matched_tag_terms = sum(1 for t in terms if any(t in tag for tag in tags_low))
+        score += matched_title_terms * 12
+        score += matched_tag_terms * 8
+
+        # 2. Heading and Content matches
         if clean_query in c_heading_low:
-            score += 10
+            score += 15
         elif any(t in c_heading_low for t in terms):
-            score += 5
+            score += 6
 
         if clean_query in c_content_low:
-            score += 6
+            score += 8
         
-        # 2. Term frequency overlap
+        # Term frequency in content
         for t in terms:
             if t in c_content_low:
-                score += 1
-            if t in tags_low:
-                score += 4
-            if t in cat_low:
-                score += 3
+                score += 2
 
-        # 3. Partition Domain Specific Boost (e.g. Tier 1 Science/Active boost)
+        # 3. Product category boost if user searches for product-related keywords
+        product_intent_words = {"product", "products", "kajal", "kohl", "lipstick", "lipsticks", "shade", "shades", "foundation", "compact", "powder", "blush", "primer", "cream", "kit", "kits", "eyeliner", "palette", "gloss"}
+        has_product_intent = any(w in clean_query for w in product_intent_words)
+        if has_product_intent:
+            if cat_low == "products":
+                score += 25
+            elif cat_low == "formulations":
+                score += 12
+
+        # 4. Partition Domain Specific Boost
         for boost_word in active_boost_terms:
             if boost_word in f_title_low or boost_word in tags_low:
-                score += 3
-            if boost_word in c_heading_low:
                 score += 2
+            if boost_word in c_heading_low:
+                score += 1
 
         entry = {
             "file_id": file.id,
@@ -180,21 +211,47 @@ async def get_file_details(
 ) -> Optional[Dict[str, Any]]:
     """
     Retrieves full content, chunks, and relationships for a specific file by ID or filename.
-    Enforces partition access rights.
+    Enforces partition access rights. Uses Unicode normalization and fuzzy fallback matching.
     """
+    clean_id = _normalize_filename(file_identifier)
+    # Strip .md extension for matching flexibility
+    base_name = clean_id.replace(".md", "")
+    
+    # Build partition filter
+    partition_filter = None
+    if allowed_partitions is not None:
+        effective_partitions = list(set(allowed_partitions + [0]))
+        partition_filter = FileModel.partition.in_(effective_partitions)
+
+    # Strategy 1: Exact match (original + normalized + with .md)
     stmt = select(FileModel).where(
         or_(
             FileModel.file_name == file_identifier,
             FileModel.file_name == f"{file_identifier}.md",
+            FileModel.file_name == clean_id,
+            FileModel.file_name == f"{clean_id}.md",
+            FileModel.file_name == base_name,
+            FileModel.file_name == f"{base_name}.md",
             FileModel.id == (int(file_identifier) if file_identifier.isdigit() else -1)
         )
     )
-    if allowed_partitions is not None:
-        effective_partitions = list(set(allowed_partitions + [0]))
-        stmt = stmt.where(FileModel.partition.in_(effective_partitions))
+    if partition_filter is not None:
+        stmt = stmt.where(partition_filter)
 
     result = await session.execute(stmt)
     file = result.scalar_one_or_none()
+
+    # Strategy 2: Fuzzy ILIKE fallback (handles remaining encoding mismatches)
+    if not file and len(base_name) > 2:
+        # Use core words from the filename for fuzzy search
+        fuzzy_pattern = f"%{base_name}%"
+        stmt2 = select(FileModel).where(FileModel.file_name.ilike(fuzzy_pattern))
+        if partition_filter is not None:
+            stmt2 = stmt2.where(partition_filter)
+        stmt2 = stmt2.limit(1)
+        result2 = await session.execute(stmt2)
+        file = result2.scalar_one_or_none()
+
     if not file:
         return None
 

@@ -64,8 +64,30 @@ related:
 
 # Kajal & Kohl Formulations
 
-Cultural staple and eye-defining formulations engineered with waterproof volatile silicone films and deep mineral black/colored pigments.
+Cultural staple and eye-defining formulations engineered with waterproof volatile silicone films and deep mineral black/colored pigments designed to resist heat, humidity, and oily eyelids.
+
+## Core Products in this Category
+
+| Product Name | Format | Price | Wear Time | Key Benefit |
+|---|---|---|---|---|
+| [[Kohl Of Honour Intense Kajal]] | Twist-up retractable | ₹249 | 12+ Hours | Everyday gentle wear, no tugging |
+| [[Twist And Shout Fadeproof Kajal]] | Anti-slip twist-up | ₹425 | 10+ Hours | Clean formula (no parabens/preservatives) |
+| [[Stroke Of Genius Heavy-Duty Kohl]] | Soft gel-pencil | ₹549 | Up to 24 Hours | Extreme water resistance for watery eyes |
+| [[SUGAR Eyeliners]] | Liquid felt & gel pots | ₹399–₹699 | 17+ Hours | High-precision wings & festive colors |
+
+## Chemical & Formulation Architecture
+
+1. **Volatile Silicone & Hydrocarbon Carriers**: Use of Isododecane and Cyclopentasiloxane provides smooth, effortless glide across the waterline before evaporating completely within 30–60 seconds, leaving a water-insoluble film.
+2. **Polymeric Film Formers**: Trimethylsiloxysilicate and Acrylates Copolymer cross-link to shield deep carbon and iron oxide pigments from sebum dissolution.
+3. **Waxes vs. Synthetic Resins**: Balancing natural waxes (Carnauba, Candelilla) with synthetic polymers prevents melting under high ambient Indian temperatures (35°C–45°C).
+
+## Application Protocol for Oily Lids
+1. **Mattify**: Dust [[All Set To Go Translucent Powder]] across the eyelid and lower waterline.
+2. **Tightline**: Apply [[Kohl Of Honour Intense Kajal]] or [[Stroke Of Genius Heavy-Duty Kohl]] along the upper and lower waterlines.
+3. **Lock**: Press a matte black eyeshadow from [[SUGAR Eyeshadow Palettes]] over the line to absorb residual sebum.
 
 ## Navigation & Hub Links
-- [[Wiki Navigation Index|Wiki Navigation Index]]
+- [[Wiki Navigation Index|index]]
 - [[SUGAR Cosmetics]]
+- [[Monsoon & Humidity-Proof Makeup]]
+- [[Beginner Makeup Starter Kits]]

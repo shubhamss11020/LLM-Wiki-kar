@@ -36,6 +36,36 @@ Welcome to the Knowledge Base. This catalogue organizes concept notes, formulati
 - [[Highlighters & Illuminators]] — Desi glass skin techniques and gold/bronze highlighter matching.
 - [[Hybrid Skincare-Makeup]] — Niacinamide blushes, peptide gloss sticks, and active-infused color.
 
+## 2.1 SUGAR Cosmetics Official Product Catalog
+### Eye Products (Kajal, Kohl & Eyeliners)
+- [[Kohl Of Honour Intense Kajal]] — ₹249 everyday 12HR waterproof, smudge-proof kajal for sensitive eyes.
+- [[Twist And Shout Fadeproof Kajal]] — ₹425 clean formula without parabens/preservatives for reactive eyes.
+- [[Stroke Of Genius Heavy-Duty Kohl]] — ₹549 24HR maximum hold waterproof kohl for watery eyes.
+- [[SUGAR Eyeliners]] — ₹399–₹699 precision felt tip pens, gel eyeliner pots, and colored metallic liners.
+- [[SUGAR Eyeshadow Palettes]] — Beginner-friendly multi-finish palettes for daily and festive eyes.
+
+### Lip Products (Matte, Liquid, Hybrid & Gloss)
+- [[Matte As Hell Crayon Lipstick]] — ₹899 flagship creamy matte crayon with 30+ shades tested on Indian skin tones.
+- [[Smudge Me Not Liquid Lipstick]] — ₹499–₹699 extreme 18HR transfer-proof ultra matte liquid lip.
+- [[Glide Peptide Serum Lipstick]] — ₹699–₹899 skincare-hybrid lipstick with Peptides, Hyaluronic Acid, Squalane.
+- [[Peptide Plumping Gloss Stick]] — ₹499–₹699 non-sticky high-shine gloss with peptide volume plumping.
+- [[SUGAR POP Lipsticks]] — ₹199–₹299 budget-friendly vibrant Gen Z matte and satin lipsticks.
+- [[Tipsy Lips SPF30 Lip Balm & Treatments]] — ₹199–₹299 Broad Spectrum SPF 30 photoprotective lip treatment.
+
+### Face & Complexion Bases
+- [[Ace Of Face Foundation Stick]] — ₹799–₹999 portable buildable foundation stick with coffee-inspired undertone matching.
+- [[Mettle Cream To Powder Foundation]] — ₹699–₹999 velvet matte cream-to-powder base for oily skin in high humidity.
+- [[Ace Of Face Dewy Foundation]] — ₹899–₹1099 hydrating radiant liquid foundation for Desi Glass Skin.
+- [[All Set To Go Translucent Powder]] — ₹499–₹699 micro-milled loose translucent, banana, and compact powders.
+- [[Contour De Force Highlighter]] — ₹499–₹799 baked and liquid warm gold/bronze highlighters for Indian undertones.
+- [[SUGAR Niacinamide Blush]] — ₹399–₹699 2% Niacinamide-infused 12HR sweat-proof cheek flush.
+- [[SUGAR Primers]] — ₹499–₹799 pore-blurring velvet gel and hydrating Aquaholic base preps.
+
+### Skincare & Curated Sets
+- [[Caffeine Eye Cream]] — ₹399–₹599 pure caffeine firming eye cream for dark circles and puffiness.
+- [[Beginner Makeup Kits]] — Value-tiered starter kits under ₹500, ₹1000, ₹1500, and ₹2000.
+
+
 ## 3. Guides, Protocols & Shade Matching
 - [[Monsoon & Humidity-Proof Makeup]] — Sweat and rain endurance routines.
 - [[Beginner Makeup Starter Kits]] — Under ₹500, under ₹1500, under ₹2000, and 10-minute starter kits.

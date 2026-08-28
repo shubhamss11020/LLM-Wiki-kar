@@ -75,6 +75,20 @@ related:
 
 Techniques and formulations for mattifying oily and combination skin in tropical climates without caking, flashback, or ashiness.
 
+## Core Products in this Category
+
+| Product Name | Format | Price | Target Area | Key Finish |
+|---|---|---|---|---|
+| [[All Set To Go Translucent Powder & Compacts|All Set To Go Loose Powder]] | Micro-milled loose jar | ₹599 | Full face setting | Invisible blurring matte |
+| [[All Set To Go Translucent Powder & Compacts|All Set To Go Banana Powder]] | Loose jar (Yellow tint) | ₹599 | Under-eye / Highlight bake | Brightened radiant matte |
+| [[All Set To Go Translucent Powder & Compacts|Dream Cover SPF15 Compact]] | Pressed mirror compact | ₹499 | On-the-go T-zone touch-up | Sun-protected natural matte |
+
+## Chemistry of Tropical Sebum Absorption
+1. **Porous Silica Microspheres**: Absorb up to 300% of their own weight in excess sebum without destabilizing the foundation film beneath.
+2. **Flashback Elimination**: By omitting high-refractive zinc oxide/titanium dioxide in loose setting powders, light scatters diffusely under camera flashes rather than reflecting directly back into the lens.
+
 ## Navigation & Hub Links
-- [[Wiki Navigation Index|Wiki Navigation Index]]
+- [[Wiki Navigation Index|index]]
 - [[SUGAR Cosmetics]]
+- [[Monsoon & Humidity-Proof Makeup]]
+- [[Foundation Formulations]]
