@@ -41,6 +41,37 @@ async def init_db():
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_files_title_trgm ON files USING gin (title gin_trgm_ops);"))
             except Exception:
                 pass
+            # Ensure thread tables exist (safety net for partial create_all)
+            try:
+                await conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS threads (
+                        id SERIAL PRIMARY KEY,
+                        thread_id VARCHAR(64) UNIQUE NOT NULL,
+                        "user" VARCHAR(128) NOT NULL,
+                        title VARCHAR(512) NOT NULL,
+                        file_path VARCHAR(1024),
+                        turn_count INTEGER DEFAULT 0,
+                        timezone VARCHAR(64) DEFAULT 'Asia/Kolkata',
+                        created_at TIMESTAMP NOT NULL,
+                        last_updated TIMESTAMP NOT NULL
+                    );
+                """))
+                await conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS thread_turns (
+                        id SERIAL PRIMARY KEY,
+                        thread_id VARCHAR(64) NOT NULL REFERENCES threads(thread_id) ON DELETE CASCADE,
+                        turn_number INTEGER NOT NULL,
+                        user_prompt TEXT NOT NULL,
+                        ai_response TEXT,
+                        created_at TIMESTAMP NOT NULL
+                    );
+                """))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_threads_thread_id ON threads (thread_id);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_threads_user ON threads (\"user\");"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_threads_last_updated ON threads (last_updated);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_thread_turns_thread_id ON thread_turns (thread_id);"))
+            except Exception:
+                pass
         logger.info("Database tables and high-speed GIN indexes initialized successfully.")
     except Exception as e:
         logger.warning(f"Could not connect to database ({e}), attempting fallback to SQLite.")
