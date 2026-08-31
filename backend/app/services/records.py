@@ -106,6 +106,55 @@ source_files:
                 created_at=utc_created
             )
             session.add(db_record)
+            
+            # Also dual-sync into threads & thread_turns for the live UI dashboard
+            try:
+                from backend.app.database.models import ThreadModel, ThreadTurnModel
+                thread_title = (topics[0].replace("-", " ").title()) if topics else prompt[:50].strip()
+                # Check for existing thread with same title today
+                today_start = utc_created.replace(hour=0, minute=0, second=0, microsecond=0)
+                stmt = select(ThreadModel).where(
+                    ThreadModel.title == thread_title,
+                    ThreadModel.created_at >= today_start
+                )
+                res = await session.execute(stmt)
+                existing_thread = res.scalar_one_or_none()
+
+                if existing_thread:
+                    existing_thread.turn_count = (existing_thread.turn_count or 0) + 1
+                    existing_thread.last_updated = utc_created
+                    turn = ThreadTurnModel(
+                        thread_id=existing_thread.thread_id,
+                        turn_number=existing_thread.turn_count,
+                        user_prompt=prompt,
+                        ai_response=response,
+                        created_at=utc_created
+                    )
+                    session.add(turn)
+                else:
+                    thr_id = f"thr-{uuid.uuid4().hex[:8]}"
+                    new_thr = ThreadModel(
+                        thread_id=thr_id,
+                        user="shubh",
+                        title=thread_title,
+                        file_path=full_file_path,
+                        turn_count=1,
+                        timezone=tz_name,
+                        created_at=utc_created,
+                        last_updated=utc_created
+                    )
+                    session.add(new_thr)
+                    turn = ThreadTurnModel(
+                        thread_id=thr_id,
+                        turn_number=1,
+                        user_prompt=prompt,
+                        ai_response=response,
+                        created_at=utc_created
+                    )
+                    session.add(turn)
+            except Exception:
+                pass
+
             await session.commit()
         except Exception as e:
             # Table might be missing or DB reconnecting

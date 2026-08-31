@@ -70,6 +70,35 @@ async def init_db():
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_threads_user ON threads (\"user\");"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_threads_last_updated ON threads (last_updated);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_thread_turns_thread_id ON thread_turns (thread_id);"))
+                
+                # Auto-migrate existing generations into threads table
+                await conn.execute(text("""
+                    INSERT INTO threads (thread_id, "user", title, file_path, turn_count, timezone, created_at, last_updated)
+                    SELECT 
+                        'thr-' || SUBSTRING(MD5(record_id), 1, 8),
+                        'shubh',
+                        COALESCE(SUBSTRING(prompt FROM 1 FOR 60), 'Conversation'),
+                        file_path,
+                        1,
+                        COALESCE(timezone, 'Asia/Kolkata'),
+                        created_at,
+                        created_at
+                    FROM generations
+                    WHERE record_id IS NOT NULL
+                    ON CONFLICT (thread_id) DO NOTHING;
+                """))
+                await conn.execute(text("""
+                    INSERT INTO thread_turns (thread_id, turn_number, user_prompt, ai_response, created_at)
+                    SELECT 
+                        'thr-' || SUBSTRING(MD5(record_id), 1, 8),
+                        1,
+                        prompt,
+                        response,
+                        created_at
+                    FROM generations
+                    WHERE record_id IS NOT NULL
+                    ON CONFLICT DO NOTHING;
+                """))
             except Exception:
                 pass
         logger.info("Database tables and high-speed GIN indexes initialized successfully.")
