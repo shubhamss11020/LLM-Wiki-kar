@@ -266,6 +266,17 @@ def resolve_allowed_partitions(x_api_key: Optional[str] = Header(None)) -> Optio
     return [1, 2, 3]
 
 # --- REST Endpoints ---
+@app.post("/api/init-db")
+async def force_init_db():
+    """
+    Manually force database table creation. Use if tables are missing after deploy.
+    """
+    try:
+        await init_db()
+        return {"status": "success", "message": "Database tables initialized."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/health")
 async def health_check():
     return {
@@ -443,8 +454,12 @@ async def get_threads(
     """
     List all conversation threads, optionally filtered by user.
     """
-    threads = await list_threads(user=user, session=session, limit=limit)
-    return {"count": len(threads), "threads": threads}
+    try:
+        threads = await list_threads(user=user, session=session, limit=limit)
+        return {"count": len(threads), "threads": threads}
+    except Exception:
+        # Table may not exist yet — return empty gracefully
+        return {"count": 0, "threads": []}
 
 @app.get("/api/threads/{thread_id}")
 async def get_thread_by_id(
@@ -454,10 +469,15 @@ async def get_thread_by_id(
     """
     Get full thread detail including all turns.
     """
-    detail = await get_thread_detail(thread_id=thread_id, session=session)
-    if not detail:
-        raise HTTPException(status_code=404, detail=f"Thread '{thread_id}' not found.")
-    return detail
+    try:
+        detail = await get_thread_detail(thread_id=thread_id, session=session)
+        if not detail:
+            raise HTTPException(status_code=404, detail=f"Thread '{thread_id}' not found.")
+        return detail
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="Thread tables not initialized yet. POST /api/init-db to create them.")
 
 @app.get("/threads", response_class=HTMLResponse)
 async def threads_dashboard():
