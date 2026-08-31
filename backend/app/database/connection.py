@@ -26,23 +26,31 @@ async def init_db():
     """Initializes the database schema with automatic SQLite fallback and high-speed GIN indexes."""
     global engine, AsyncSessionLocal
     try:
+        # Step 1: Base table creation
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            try:
-                await conn.execute(text("ALTER TABLE files ADD COLUMN partition INTEGER DEFAULT 1;"))
-            except Exception:
-                pass
-            # Optimize PostgreSQL / Neon with GIN Trigram indexes for sub-5ms search
-            try:
+
+        # Step 2: Ensure partition column
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE files ADD COLUMN IF NOT EXISTS partition INTEGER DEFAULT 1;"))
+        except Exception:
+            pass
+
+        # Step 3: GIN Trigram indexes
+        try:
+            async with engine.begin() as conn:
                 await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chunks_content_trgm ON chunks USING gin (content gin_trgm_ops);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chunks_heading_trgm ON chunks USING gin (heading gin_trgm_ops);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_files_partition_id ON files (partition, id);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_files_title_trgm ON files USING gin (title gin_trgm_ops);"))
-            except Exception:
-                pass
-            # Ensure thread tables exist (safety net for partial create_all)
-            try:
+        except Exception:
+            pass
+
+        # Step 4: Ensure thread tables exist
+        try:
+            async with engine.begin() as conn:
                 await conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS threads (
                         id SERIAL PRIMARY KEY,
@@ -70,8 +78,12 @@ async def init_db():
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_threads_user ON threads (\"user\");"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_threads_last_updated ON threads (last_updated);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_thread_turns_thread_id ON thread_turns (thread_id);"))
-                
-                # Auto-migrate existing generations into threads table
+        except Exception as e:
+            logger.warning(f"Thread table DDL warning: {e}")
+
+        # Step 5: Auto-migrate existing generations
+        try:
+            async with engine.begin() as conn:
                 await conn.execute(text("""
                     INSERT INTO threads (thread_id, "user", title, file_path, turn_count, timezone, created_at, last_updated)
                     SELECT 
@@ -105,8 +117,9 @@ async def init_db():
                             AND tt.turn_number = 1
                       );
                 """))
-            except Exception as e:
-                logger.warning(f"Thread table auto-migration warning: {e}")
+        except Exception as e:
+            logger.warning(f"Generation migration warning: {e}")
+
         logger.info("Database tables and high-speed GIN indexes initialized successfully.")
     except Exception as e:
         logger.warning(f"Could not connect to database ({e}), attempting fallback to SQLite.")

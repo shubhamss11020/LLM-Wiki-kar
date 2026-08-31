@@ -274,10 +274,16 @@ async def force_init_db():
     try:
         await init_db()
         from sqlalchemy import text
-        async with AsyncSessionLocal() as session:
-            t_count = (await session.execute(text("SELECT COUNT(*) FROM threads;"))).scalar()
-            g_count = (await session.execute(text("SELECT COUNT(*) FROM generations;"))).scalar()
-            f_count = (await session.execute(text("SELECT COUNT(*) FROM files;"))).scalar()
+        t_count = 0
+        g_count = 0
+        f_count = 0
+        try:
+            async with AsyncSessionLocal() as session:
+                t_count = (await session.execute(text("SELECT COUNT(*) FROM threads;"))).scalar() or 0
+                g_count = (await session.execute(text("SELECT COUNT(*) FROM generations;"))).scalar() or 0
+                f_count = (await session.execute(text("SELECT COUNT(*) FROM files;"))).scalar() or 0
+        except Exception:
+            pass
         return {
             "status": "success",
             "message": "Database tables initialized and migrated.",
