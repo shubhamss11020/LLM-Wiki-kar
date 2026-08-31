@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
 
 def create_partition_mcp_server(
     name: str, 
-    partition_id: Optional[int], 
+    allowed_partitions: Optional[List[int]], 
     tier_title: str, 
     path_prefix: str = ""
 ) -> MCPServer:
     """
-    Creates an isolated Remote MCP Server for a specific tier/partition or master.
+    Creates an isolated Remote MCP Server for a specific tier access level.
     """
     server = MCPServer(
         name=name,
@@ -40,7 +40,7 @@ def create_partition_mcp_server(
         ),
     )
     
-    allowed = [partition_id] if partition_id is not None else None
+    allowed = allowed_partitions
     
     @server.tool()
     async def search_wiki(query: str, category: Optional[str] = None, limit: int = 5) -> str:
@@ -68,7 +68,6 @@ def create_partition_mcp_server(
                         f"- **Heading:** {r['heading']}\n"
                         f"- **Snippet:** {r['snippet']}\n"
                     )
-                # Note: save_generation instruction is in server instructions, not in tool output
                 return "\n".join(formatted)
         except Exception as e:
             logger.error(f"MCP search_wiki error ({name}): {e}", exc_info=True)
@@ -168,30 +167,27 @@ def create_partition_mcp_server(
 
     return server
 
-# Instantiate 3 Tier Partition MCP Servers + 1 Master MCP Server
-mcp_tier1 = create_partition_mcp_server(
-    name="wiki-tier1-skincare", 
-    partition_id=1, 
-    tier_title="Tier 1: Skincare Actives & Science", 
-    path_prefix="/tier1"
+# Instantiate 3 Segregated Hierarchical MCP Servers:
+# - MCP 1: Full Access to all Tiers (Tier 1 + Tier 2 + Tier 3)
+# - MCP 2: Segregated Access to Tier 2 & Tier 3 only
+# - MCP 3: Segregated Access to Tier 3 only
+mcp_1 = create_partition_mcp_server(
+    name="mcp-1-all-tiers", 
+    allowed_partitions=[1, 2, 3], 
+    tier_title="MCP 1: Full Knowledge Base (All Tiers 1, 2 & 3)", 
+    path_prefix="/mcp1"
 )
-mcp_tier2 = create_partition_mcp_server(
-    name="wiki-tier2-complexion", 
-    partition_id=2, 
-    tier_title="Tier 2: Complexion, Bases & Formulations", 
-    path_prefix="/tier2"
+mcp_2 = create_partition_mcp_server(
+    name="mcp-2-tier2-3", 
+    allowed_partitions=[2, 3], 
+    tier_title="MCP 2: Tier 2 & 3 (Complexion, Bases, Eyes, Lips & Culture)", 
+    path_prefix="/mcp2"
 )
-mcp_tier3 = create_partition_mcp_server(
-    name="wiki-tier3-eyeslips", 
-    partition_id=3, 
-    tier_title="Tier 3: Eyes, Lips, Culture & Guides", 
-    path_prefix="/tier3"
-)
-mcp_master = create_partition_mcp_server(
-    name="wiki-master-all", 
-    partition_id=None, 
-    tier_title="Master Knowledge Base (All Tiers)", 
-    path_prefix=""
+mcp_3 = create_partition_mcp_server(
+    name="mcp-3-tier3-only", 
+    allowed_partitions=[3], 
+    tier_title="MCP 3: Tier 3 Only (Lips, Eyes, Climate Wear & Cultural Guides)", 
+    path_prefix="/mcp3"
 )
 
 # --- Lifespan for Database and Remote MCP Session Managers ---
@@ -200,11 +196,10 @@ async def lifespan(app: FastAPI):
     await init_db()
     try:
         async with AsyncExitStack() as stack:
-            await stack.enter_async_context(mcp_master.session_manager.run())
-            await stack.enter_async_context(mcp_tier1.session_manager.run())
-            await stack.enter_async_context(mcp_tier2.session_manager.run())
-            await stack.enter_async_context(mcp_tier3.session_manager.run())
-            logger.info("All 4 Remote MCP partition session managers started successfully.")
+            await stack.enter_async_context(mcp_1.session_manager.run())
+            await stack.enter_async_context(mcp_2.session_manager.run())
+            await stack.enter_async_context(mcp_3.session_manager.run())
+            logger.info("All 3 Hierarchical Remote MCP partition session managers started successfully.")
             yield
     except Exception as e:
         logger.error(f"MCP session manager failed: {e}", exc_info=True)
@@ -212,7 +207,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Knowledge Base Wiki API",
-    description="Knowledge base search, vault ingestion, and timestamped generation history with Native Remote MCP Support.",
+    description="Knowledge base search, vault ingestion, and timestamped generation history with Native Hierarchical Remote MCP Support.",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -232,22 +227,20 @@ class RecordCreateRequest(BaseModel):
 
 def resolve_allowed_partitions(x_api_key: Optional[str] = Header(None)) -> Optional[List[int]]:
     """
-    Resolves client API Key to strictly allowed domain partitions:
-    - Partition 1: Skincare Actives & Dermatological Science
-    - Partition 2: Complexion, Bases & Formulations
-    - Partition 3: Lips, Eyes, Climate Wear & Cultural Guides
+    Resolves client API Key to strictly allowed hierarchical tiers:
+    - MCP 1 / Tier 1 / Admin: All tiers [1, 2, 3]
+    - MCP 2 / Tier 2: Tiers [2, 3] only
+    - MCP 3 / Tier 3: Tier [3] only
     """
     if not x_api_key:
-        return None
-    key_low = x_api_key.lower().strip()
-    if any(k in key_low for k in ["part1", "partition1", "tier1", "skincare"]):
-        return [1]
-    elif any(k in key_low for k in ["part2", "partition2", "tier2", "complexion", "base"]):
-        return [2]
-    elif any(k in key_low for k in ["part3", "partition3", "tier3", "eyeslips", "culture"]):
-        return [3]
-    elif any(k in key_low for k in ["admin", "master"]):
         return [1, 2, 3]
+    key_low = x_api_key.lower().strip()
+    if any(k in key_low for k in ["mcp1", "tier1", "part1", "all", "admin", "master"]):
+        return [1, 2, 3]
+    elif any(k in key_low for k in ["mcp2", "tier2", "part2", "complexion", "base"]):
+        return [2, 3]
+    elif any(k in key_low for k in ["mcp3", "tier3", "part3", "eyeslips", "culture"]):
+        return [3]
     return [1, 2, 3]
 
 # --- REST Endpoints ---
@@ -258,15 +251,20 @@ async def health_check():
         "project": settings.PROJECT_NAME,
         "vault_path": settings.VAULT_PATH,
         "mcp_endpoints": {
-            "master_full_wiki": f"{settings.SERVER_URL}/mcp",
-            "tier1_skincare_science": f"{settings.SERVER_URL}/tier1/mcp",
-            "tier2_complexion_bases": f"{settings.SERVER_URL}/tier2/mcp",
-            "tier3_eyes_lips_culture": f"{settings.SERVER_URL}/tier3/mcp",
+            "mcp_1_all_tiers": f"{settings.SERVER_URL}/mcp1/mcp",
+            "mcp_2_tier2_and_3": f"{settings.SERVER_URL}/mcp2/mcp",
+            "mcp_3_tier3_only": f"{settings.SERVER_URL}/mcp3/mcp",
+            "master_root": f"{settings.SERVER_URL}/mcp"
         },
-        "partitions": {
-            "1": "Skincare Actives & Dermatological Science",
-            "2": "Complexion, Bases & Formulations",
-            "3": "Lips, Eyes, Climate Wear & Cultural Guides"
+        "tier_hierarchy": {
+            "MCP 1": "Full Access: Tier 1 (Skincare Actives), Tier 2 (Complexion/Bases), Tier 3 (Eyes/Lips/Culture)",
+            "MCP 2": "Partial Access: Tier 2 (Complexion/Bases), Tier 3 (Eyes/Lips/Culture) [Tier 1 Blocked]",
+            "MCP 3": "Restricted Access: Tier 3 (Eyes/Lips/Culture) [Tier 1 & Tier 2 Blocked]"
+        },
+        "database_partitions": {
+            "1": "Tier 1: Skincare Actives & Dermatological Science",
+            "2": "Tier 2: Complexion, Bases & Formulations",
+            "3": "Tier 3: Lips, Eyes, Climate Wear & Cultural Guides"
         }
     }
 
@@ -356,10 +354,18 @@ async def create_generation_record(
 # --- Mount Remote MCP Endpoints ---
 sec_settings = TransportSecuritySettings(allowed_hosts=["*"], enable_dns_rebinding_protection=False)
 
-# Tier 1, Tier 2, Tier 3 sub-apps
-app.mount("/tier1", mcp_tier1.streamable_http_app(transport_security=sec_settings))
-app.mount("/tier2", mcp_tier2.streamable_http_app(transport_security=sec_settings))
-app.mount("/tier3", mcp_tier3.streamable_http_app(transport_security=sec_settings))
+# MCP 1 (All Tiers: 1, 2, 3)
+app.mount("/mcp1", mcp_1.streamable_http_app(transport_security=sec_settings))
+app.mount("/tier1", mcp_1.streamable_http_app(transport_security=sec_settings))
 
-# Master (All partitions) mounted at root
-app.mount("/", mcp_master.streamable_http_app(transport_security=sec_settings))
+# MCP 2 (Tier 2 & 3 only)
+app.mount("/mcp2", mcp_2.streamable_http_app(transport_security=sec_settings))
+app.mount("/tier2", mcp_2.streamable_http_app(transport_security=sec_settings))
+
+# MCP 3 (Tier 3 only)
+app.mount("/mcp3", mcp_3.streamable_http_app(transport_security=sec_settings))
+app.mount("/tier3", mcp_3.streamable_http_app(transport_security=sec_settings))
+
+# Root endpoint (MCP 1 - All Tiers)
+app.mount("/", mcp_1.streamable_http_app(transport_security=sec_settings))
+

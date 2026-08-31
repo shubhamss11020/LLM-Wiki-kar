@@ -1,16 +1,14 @@
 {
   "mcpServers": {
-    "wiki-skincare-science": {
-      "url": "https://llm-wiki-kar.onrender.com/tier1/mcp"
+    "mcp-1-all-tiers": {
+      "url": "https://llm-wiki-kar.onrender.com/mcp1/mcp"
     },
-    "wiki-complexion-bases": {
-      "url": "https://llm-wiki-kar.onrender.com/tier2/mcp"
+    "mcp-2-tier2-3": {
+      "url": "https://llm-wiki-kar.onrender.com/mcp2/mcp"
     },
-    "wiki-eyes-lips-culture": {
-      "url": "https://llm-wiki-kar.onrender.com/tier3/mcp"
-    },
-    "wiki-master-all": {
-      "url": "https://llm-wiki-kar.onrender.com/mcp"
+    "mcp-3-tier3-only": {
+      "url": "https://llm-wiki-kar.onrender.com/mcp3/mcp"
     }
   }
 }
+

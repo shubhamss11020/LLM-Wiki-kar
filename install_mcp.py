@@ -41,34 +41,40 @@ def install():
         current_config["mcpServers"] = {}
 
     # Clean up any legacy server entries
-    current_config["mcpServers"].pop("karpathy-llm-wiki", None)
-    current_config["mcpServers"].pop("knowledge-wiki", None)
+    for old_name in [
+        "karpathy-llm-wiki", "knowledge-wiki", 
+        "wiki-skincare-science", "wiki-complexion-bases", "wiki-eyes-lips-culture", "wiki-master-all"
+    ]:
+        current_config["mcpServers"].pop(old_name, None)
 
     backend_url = "https://llm-wiki-kar.onrender.com"
 
-    # Add 3 Segregated Partition Servers
-    current_config["mcpServers"]["wiki-skincare-science"] = {
+    # Add 3 Hierarchically Segregated MCP Servers:
+    # MCP 1: Full Access (Tiers 1, 2, 3)
+    current_config["mcpServers"]["mcp-1-all-tiers"] = {
         "command": sys.executable or "python",
         "args": [server_path],
         "env": {
             "BACKEND_API_URL": backend_url,
-            "WIKI_API_KEY": "partition-1-skincare-key"
+            "WIKI_API_KEY": "mcp1-all-tiers-key"
         }
     }
-    current_config["mcpServers"]["wiki-complexion-bases"] = {
+    # MCP 2: Tiers 2 & 3 only
+    current_config["mcpServers"]["mcp-2-tier2-3"] = {
         "command": sys.executable or "python",
         "args": [server_path],
         "env": {
             "BACKEND_API_URL": backend_url,
-            "WIKI_API_KEY": "partition-2-complexion-key"
+            "WIKI_API_KEY": "mcp2-tier2-3-key"
         }
     }
-    current_config["mcpServers"]["wiki-eyes-lips-culture"] = {
+    # MCP 3: Tier 3 only
+    current_config["mcpServers"]["mcp-3-tier3-only"] = {
         "command": sys.executable or "python",
         "args": [server_path],
         "env": {
             "BACKEND_API_URL": backend_url,
-            "WIKI_API_KEY": "partition-3-eyeslips-key"
+            "WIKI_API_KEY": "mcp3-tier3-only-key"
         }
     }
 
@@ -80,6 +86,10 @@ def install():
     print(f"Config File Updated: {config_path}")
     print(f"Server Script: {server_path}")
     print(f"Live Backend: {backend_url}")
+    print("\nConfigured MCP Tiers:")
+    print(" - mcp-1-all-tiers: Full Access (Tier 1 + Tier 2 + Tier 3)")
+    print(" - mcp-2-tier2-3: Segregated Access (Tier 2 & Tier 3 only)")
+    print(" - mcp-3-tier3-only: Restricted Access (Tier 3 only)")
     print("================================================================")
     print("\nNext Step: Open / Restart Claude Desktop to start querying the wiki.")
 

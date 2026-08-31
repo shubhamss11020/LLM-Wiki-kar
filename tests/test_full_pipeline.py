@@ -58,20 +58,33 @@ async def test_full_flow():
         print(f"[PASS] Query records returned {len(records)} record(s). Latest ID: {records[0]['record_id']}")
         assert len(records) > 0, "Saved generation record must be queryable!"
 
-        print("\n--- 8. Testing 3-Tier Partition Access Rights (RBAC) ---")
-        # Partition 1 (Skincare) querying Foundation Formulations
-        p1_leak = await get_file_details("Foundation Formulations.md", session, allowed_partitions=[1])
-        assert p1_leak is None, "Partition 1 MUST NOT have access to Partition 2 Foundation Formulations!"
+        print("\n--- 8. Testing Hierarchical Tier Segregation (RBAC) ---")
+        # MCP 1: Full Access (Tiers 1, 2, 3)
+        mcp1_t1 = await get_file_details("Vitamin C.md", session, allowed_partitions=[1, 2, 3])
+        mcp1_t2 = await get_file_details("Foundation Formulations.md", session, allowed_partitions=[1, 2, 3])
+        mcp1_t3 = await get_file_details("Lipstick Formulations.md", session, allowed_partitions=[1, 2, 3])
+        assert mcp1_t1 is not None, "MCP 1 MUST have access to Tier 1 notes!"
+        assert mcp1_t2 is not None, "MCP 1 MUST have access to Tier 2 notes!"
+        assert mcp1_t3 is not None, "MCP 1 MUST have access to Tier 3 notes!"
+        print("[PASS] MCP 1 has verified full access to Tier 1, Tier 2, and Tier 3 data.")
         
-        # Partition 2 (Complexion) querying Foundation Formulations
-        p2_access = await get_file_details("Foundation Formulations.md", session, allowed_partitions=[2])
-        assert p2_access is not None, "Partition 2 MUST have access to Foundation Formulations!"
+        # MCP 2: Segregated Access (Tiers 2 & 3 only)
+        mcp2_t1 = await get_file_details("Vitamin C.md", session, allowed_partitions=[2, 3])
+        mcp2_t2 = await get_file_details("Foundation Formulations.md", session, allowed_partitions=[2, 3])
+        mcp2_t3 = await get_file_details("Lipstick Formulations.md", session, allowed_partitions=[2, 3])
+        assert mcp2_t1 is None, "MCP 2 MUST NOT have access to Tier 1 notes!"
+        assert mcp2_t2 is not None, "MCP 2 MUST have access to Tier 2 notes!"
+        assert mcp2_t3 is not None, "MCP 2 MUST have access to Tier 3 notes!"
+        print("[PASS] MCP 2 has verified access to Tier 2 & 3, and is blocked from Tier 1.")
 
-        # Partition 3 (Eyes/Lips) querying Lipstick
-        p3_access = await get_file_details("Lipstick Formulations.md", session, allowed_partitions=[3])
-        assert p3_access is not None, "Partition 3 MUST have access to Lipstick Formulations!"
-
-        print("[PASS] Strict 3-Partition isolation verified successfully.")
+        # MCP 3: Restricted Access (Tier 3 only)
+        mcp3_t1 = await get_file_details("Vitamin C.md", session, allowed_partitions=[3])
+        mcp3_t2 = await get_file_details("Foundation Formulations.md", session, allowed_partitions=[3])
+        mcp3_t3 = await get_file_details("Lipstick Formulations.md", session, allowed_partitions=[3])
+        assert mcp3_t1 is None, "MCP 3 MUST NOT have access to Tier 1 notes!"
+        assert mcp3_t2 is None, "MCP 3 MUST NOT have access to Tier 2 notes!"
+        assert mcp3_t3 is not None, "MCP 3 MUST have access to Tier 3 notes!"
+        print("[PASS] MCP 3 has verified access to Tier 3 only, and is blocked from Tier 1 & 2.")
 
     print("\n========================================================")
     print("ALL PIPELINE TESTS PASSED SUCCESSFULLY!")
