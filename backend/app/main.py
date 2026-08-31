@@ -269,11 +269,22 @@ def resolve_allowed_partitions(x_api_key: Optional[str] = Header(None)) -> Optio
 @app.post("/api/init-db")
 async def force_init_db():
     """
-    Manually force database table creation. Use if tables are missing after deploy.
+    Manually force database table creation and auto-migration.
     """
     try:
         await init_db()
-        return {"status": "success", "message": "Database tables initialized."}
+        from sqlalchemy import text
+        async with AsyncSessionLocal() as session:
+            t_count = (await session.execute(text("SELECT COUNT(*) FROM threads;"))).scalar()
+            g_count = (await session.execute(text("SELECT COUNT(*) FROM generations;"))).scalar()
+            f_count = (await session.execute(text("SELECT COUNT(*) FROM files;"))).scalar()
+        return {
+            "status": "success",
+            "message": "Database tables initialized and migrated.",
+            "threads_count": t_count,
+            "generations_count": g_count,
+            "indexed_files": f_count
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

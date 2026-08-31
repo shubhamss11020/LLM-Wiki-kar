@@ -83,9 +83,11 @@ async def init_db():
                         COALESCE(timezone, 'Asia/Kolkata'),
                         created_at,
                         created_at
-                    FROM generations
-                    WHERE record_id IS NOT NULL
-                    ON CONFLICT (thread_id) DO NOTHING;
+                    FROM generations g
+                    WHERE g.record_id IS NOT NULL
+                      AND NOT EXISTS (
+                          SELECT 1 FROM threads t WHERE t.thread_id = ('thr-' || SUBSTRING(MD5(g.record_id), 1, 8))
+                      );
                 """))
                 await conn.execute(text("""
                     INSERT INTO thread_turns (thread_id, turn_number, user_prompt, ai_response, created_at)
@@ -95,12 +97,16 @@ async def init_db():
                         prompt,
                         response,
                         created_at
-                    FROM generations
-                    WHERE record_id IS NOT NULL
-                    ON CONFLICT DO NOTHING;
+                    FROM generations g
+                    WHERE g.record_id IS NOT NULL
+                      AND NOT EXISTS (
+                          SELECT 1 FROM thread_turns tt 
+                          WHERE tt.thread_id = ('thr-' || SUBSTRING(MD5(g.record_id), 1, 8)) 
+                            AND tt.turn_number = 1
+                      );
                 """))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Thread table auto-migration warning: {e}")
         logger.info("Database tables and high-speed GIN indexes initialized successfully.")
     except Exception as e:
         logger.warning(f"Could not connect to database ({e}), attempting fallback to SQLite.")
