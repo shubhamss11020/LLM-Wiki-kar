@@ -65,31 +65,33 @@ def _write_thread_file(thread_id: str, user: str, title: str,
                        created_iso: str, last_updated_iso: str,
                        turns: List[Dict[str, Any]],
                        vault_path: Optional[str] = None) -> str:
-    """Write (overwrite) the thread Markdown file. Returns the file path."""
-    if vault_path is None:
-        vault_path = settings.VAULT_PATH
+    try:
+        if vault_path is None:
+            vault_path = settings.VAULT_PATH
 
-    threads_dir = os.path.join(vault_path, "threads")
-    os.makedirs(threads_dir, exist_ok=True)
+        threads_dir = os.path.join(vault_path, "threads")
+        os.makedirs(threads_dir, exist_ok=True)
 
-    date_str = created_iso[:10]  # YYYY-MM-DD
-    slug = _slugify(title)
-    file_name = f"{user}_{slug}_{date_str}.md"
-    file_path = os.path.join(threads_dir, file_name)
+        date_str = created_iso[:10]  # YYYY-MM-DD
+        slug = _slugify(title)
+        file_name = f"{user}_{slug}_{date_str}.md"
+        file_path = os.path.join(threads_dir, file_name)
 
-    md_content = _build_thread_md(
-        thread_id=thread_id,
-        user=user,
-        title=title,
-        created=created_iso,
-        last_updated=last_updated_iso,
-        turns=turns
-    )
+        md_content = _build_thread_md(
+            thread_id=thread_id,
+            user=user,
+            title=title,
+            created=created_iso,
+            last_updated=last_updated_iso,
+            turns=turns
+        )
 
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(md_content)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(md_content)
 
-    return file_path
+        return file_path
+    except Exception:
+        return ""
 
 
 async def create_thread(

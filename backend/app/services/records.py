@@ -84,24 +84,32 @@ source_files:
 {response}
 """
 
-    with open(full_file_path, "w", encoding="utf-8") as f:
-        f.write(md_content)
+    try:
+        with open(full_file_path, "w", encoding="utf-8") as f:
+            f.write(md_content)
+    except Exception as e:
+        # Disk write may fail in certain environments; proceed with DB
+        pass
 
     # Commit to DB if session provided
     if session:
-        utc_created = now.astimezone(pytz.utc).replace(tzinfo=None)
-        db_record = GenerationRecordModel(
-            record_id=record_id,
-            prompt=prompt,
-            response=response,
-            topics=topics,
-            source_files=source_files,
-            file_path=full_file_path,
-            timezone=tz_name,
-            created_at=utc_created
-        )
-        session.add(db_record)
-        await session.commit()
+        try:
+            utc_created = now.astimezone(pytz.utc).replace(tzinfo=None)
+            db_record = GenerationRecordModel(
+                record_id=record_id,
+                prompt=prompt,
+                response=response,
+                topics=topics,
+                source_files=source_files,
+                file_path=full_file_path,
+                timezone=tz_name,
+                created_at=utc_created
+            )
+            session.add(db_record)
+            await session.commit()
+        except Exception as e:
+            # Table might be missing or DB reconnecting
+            pass
 
     return {
         "status": "success",

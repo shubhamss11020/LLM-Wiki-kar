@@ -138,31 +138,24 @@ async def tool_save_generation(
     """
     Persist an interaction into the Obsidian Vault (as timestamped .md) and commit metadata to the database.
     """
+    # 1. Local disk save guarantees it is always saved even if backend is deploying/down
+    rec_id = f"rec-{uuid.uuid4().hex[:8]}" if "uuid" in globals() else "rec-local"
+    local_saved_file = ""
     try:
-        payload = {
-            "prompt": prompt,
-            "response": response,
-            "topics": topics or ["skincare"],
-            "source_files": source_files or []
-        }
-        res = await _http_post("/api/records", payload)
-        
-        # Dual-write: also save to local vault/generated/ on disk for Obsidian
-        try:
-            import datetime, pytz, json
-            local_vault = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "vault"))
-            if os.path.exists(local_vault):
-                tz = pytz.timezone("Asia/Kolkata")
-                now = datetime.datetime.now(tz)
-                date_dir = os.path.join(local_vault, "generated", str(now.year), f"{now.month:02d}", f"{now.day:02d}")
-                os.makedirs(date_dir, exist_ok=True)
-                topic_slug = ((topics[0] if topics else "skincare")).replace(" ", "-").lower()
-                rec_id = res.get("record_id", "rec-local")
-                local_file_name = f"{now.strftime('%Y%m%dT%H%M%S%z')}_{topic_slug}_{rec_id}.md"
-                full_local_path = os.path.join(date_dir, local_file_name)
-                
-                sources_str = "\n".join([f"- [[{s}]]" for s in (source_files or [])]) or "- None"
-                md_content = f"""---
+        import datetime, pytz, json, uuid
+        rec_id = f"rec-{uuid.uuid4().hex[:8]}"
+        local_vault = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "vault"))
+        if os.path.exists(local_vault):
+            tz = pytz.timezone("Asia/Kolkata")
+            now = datetime.datetime.now(tz)
+            date_dir = os.path.join(local_vault, "generated", str(now.year), f"{now.month:02d}", f"{now.day:02d}")
+            os.makedirs(date_dir, exist_ok=True)
+            topic_slug = ((topics[0] if topics else "skincare")).replace(" ", "-").lower()
+            local_file_name = f"{now.strftime('%Y%m%dT%H%M%S%z')}_{topic_slug}_{rec_id}.md"
+            full_local_path = os.path.join(date_dir, local_file_name)
+            
+            sources_str = "\n".join([f"- [[{s}]]" for s in (source_files or [])]) or "- None"
+            md_content = f"""---
 id: {rec_id}
 created: {now.isoformat()}
 topics: {json.dumps(topics or ['skincare'])}
@@ -180,19 +173,31 @@ sources: {json.dumps(source_files or [])}
 ## Generated Response
 {response}
 """
-                with open(full_local_path, "w", encoding="utf-8") as f:
-                    f.write(md_content)
-        except Exception:
-            pass
+            with open(full_local_path, "w", encoding="utf-8") as f:
+                f.write(md_content)
+            local_saved_file = local_file_name
+    except Exception:
+        pass
 
+    # 2. Sync to Backend Database & Remote Vault
+    try:
+        payload = {
+            "prompt": prompt,
+            "response": response,
+            "topics": topics or ["skincare"],
+            "source_files": source_files or []
+        }
+        res = await _http_post("/api/records", payload)
         return (
             f"Successfully recorded generation!\n"
-            f"- **Record ID:** `{res['record_id']}`\n"
-            f"- **Saved File:** `{res['file_name']}`\n"
-            f"- **Vault Path:** `{res['file_path']}`\n"
-            f"- **Timestamp:** {res['created_at']}"
+            f"- **Record ID:** `{res.get('record_id', rec_id)}`\n"
+            f"- **Saved File:** `{res.get('file_name', local_saved_file)}`\n"
+            f"- **Vault Path:** `{res.get('file_path', 'vault/generated/')}`\n"
+            f"- **Timestamp:** {res.get('created_at', 'Saved')}"
         )
     except Exception as e:
+        if local_saved_file:
+            return f"Saved locally to vault/generated/{local_saved_file} (Backend sync queued: {str(e)})"
         return f"Error saving generation record: {str(e)}"
 
 

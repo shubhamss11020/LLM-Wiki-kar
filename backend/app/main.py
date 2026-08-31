@@ -226,6 +226,9 @@ class SearchRequest(BaseModel):
 class RecordCreateRequest(BaseModel):
     prompt: str
     response: str
+    topics: Optional[List[str]] = None
+    source_files: Optional[List[str]] = None
+    timezone: Optional[str] = "Asia/Kolkata"
 
 class ThreadCreateRequest(BaseModel):
     user: str
@@ -242,9 +245,6 @@ class ThreadDeliverRequest(BaseModel):
     thread_id: str
     turn_number: int
     ai_response: str
-    timezone: Optional[str] = "Asia/Kolkata"
-    topics: Optional[List[str]] = None
-    source_files: Optional[List[str]] = None
     timezone: Optional[str] = "Asia/Kolkata"
 
 def resolve_allowed_partitions(x_api_key: Optional[str] = Header(None)) -> Optional[List[int]]:

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
         "SERVER_URL",
         "https://llm-wiki-kar.onrender.com"
     )
+    DEFAULT_TIMEZONE: str = "Asia/Kolkata"
     
     @property
     def async_database_url(self) -> str:
