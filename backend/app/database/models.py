@@ -73,3 +73,38 @@ class GenerationRecordModel(Base):
 
     def __repr__(self):
         return f"<GenerationRecord(record_id='{self.record_id}', created_at='{self.created_at}')>"
+
+
+class ThreadModel(Base):
+    __tablename__ = "threads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    thread_id = Column(String(64), unique=True, nullable=False, index=True)
+    user = Column(String(128), nullable=False, index=True)
+    title = Column(String(512), nullable=False)
+    file_path = Column(String(1024), nullable=True)
+    turn_count = Column(Integer, default=0)
+    timezone = Column(String(64), default="Asia/Kolkata")
+    created_at = Column(DateTime, nullable=False, index=True)
+    last_updated = Column(DateTime, nullable=False, index=True)
+
+    turns = relationship("ThreadTurnModel", back_populates="thread", cascade="all, delete-orphan", order_by="ThreadTurnModel.turn_number")
+
+    def __repr__(self):
+        return f"<Thread(thread_id='{self.thread_id}', user='{self.user}', title='{self.title}', turns={self.turn_count})>"
+
+
+class ThreadTurnModel(Base):
+    __tablename__ = "thread_turns"
+
+    id = Column(Integer, primary_key=True, index=True)
+    thread_id = Column(String(64), ForeignKey("threads.thread_id", ondelete="CASCADE"), nullable=False, index=True)
+    turn_number = Column(Integer, nullable=False)
+    user_prompt = Column(Text, nullable=False)
+    ai_response = Column(Text, nullable=True)  # Nullable — set when deliver_response is called
+    created_at = Column(DateTime, nullable=False)
+
+    thread = relationship("ThreadModel", back_populates="turns")
+
+    def __repr__(self):
+        return f"<ThreadTurn(thread_id='{self.thread_id}', turn={self.turn_number})>"

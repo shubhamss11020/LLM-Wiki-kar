@@ -77,6 +77,18 @@ def install():
             "WIKI_API_KEY": "mcp3-tier3-only-key"
         }
     }
+    # MCP 4: Thread Logger (auto-saves every conversation thread)
+    thread_logger_path = os.path.join(repo_root, "mcp-server", "thread_logger.py")
+    current_config["mcpServers"]["thread-logger"] = {
+        "command": sys.executable or "python",
+        "args": [thread_logger_path],
+        "env": {
+            "BACKEND_API_URL": backend_url,
+            "THREAD_USER": "shubh",
+            "VAULT_PATH": os.path.join(repo_root, "vault"),
+            "WIKI_API_KEY": "mcp1-all-tiers-key"
+        }
+    }
 
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(current_config, f, indent=2)
@@ -85,11 +97,13 @@ def install():
     print("SUCCESS: Claude Desktop MCP configuration installed successfully!")
     print(f"Config File Updated: {config_path}")
     print(f"Server Script: {server_path}")
+    print(f"Thread Logger: {thread_logger_path}")
     print(f"Live Backend: {backend_url}")
-    print("\nConfigured MCP Tiers:")
+    print("\nConfigured MCP Servers:")
     print(" - mcp-1-all-tiers: Full Access (Tier 1 + Tier 2 + Tier 3)")
     print(" - mcp-2-tier2-3: Segregated Access (Tier 2 & Tier 3 only)")
     print(" - mcp-3-tier3-only: Restricted Access (Tier 3 only)")
+    print(" - thread-logger: Auto-saves every conversation thread")
     print("================================================================")
     print("\nNext Step: Open / Restart Claude Desktop to start querying the wiki.")
 

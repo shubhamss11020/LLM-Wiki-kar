@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager, AsyncExitStack
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Query, Header, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from mcp.server.mcpserver import MCPServer
@@ -13,6 +14,10 @@ from backend.app.database.connection import init_db, get_db, AsyncSessionLocal
 from backend.app.ingestion.indexer import run_incremental_ingestion
 from backend.app.services.search import search_knowledge_base, get_file_details, get_related_notes
 from backend.app.services.records import save_generation_record, query_records_by_date
+from backend.app.services.threads import (
+    create_thread, append_turn, deliver_response,
+    list_threads, get_thread_detail
+)
 
 logger = logging.getLogger(__name__)
 
@@ -221,6 +226,23 @@ class SearchRequest(BaseModel):
 class RecordCreateRequest(BaseModel):
     prompt: str
     response: str
+
+class ThreadCreateRequest(BaseModel):
+    user: str
+    title: str
+    user_prompt: str
+    timezone: Optional[str] = "Asia/Kolkata"
+
+class ThreadAppendRequest(BaseModel):
+    thread_id: str
+    user_prompt: str
+    timezone: Optional[str] = "Asia/Kolkata"
+
+class ThreadDeliverRequest(BaseModel):
+    thread_id: str
+    turn_number: int
+    ai_response: str
+    timezone: Optional[str] = "Asia/Kolkata"
     topics: Optional[List[str]] = None
     source_files: Optional[List[str]] = None
     timezone: Optional[str] = "Asia/Kolkata"
@@ -350,6 +372,103 @@ async def create_generation_record(
         tz_name=req.timezone or settings.DEFAULT_TIMEZONE
     )
     return res
+
+# --- Thread Endpoints ---
+
+@app.post("/api/threads")
+async def create_or_append_thread(
+    req: ThreadCreateRequest,
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Create a new conversation thread with the first user prompt.
+    """
+    result = await create_thread(
+        user=req.user,
+        title=req.title,
+        user_prompt=req.user_prompt,
+        session=session,
+        vault_path=settings.VAULT_PATH,
+        tz_name=req.timezone or "Asia/Kolkata"
+    )
+    return result
+
+@app.post("/api/threads/append")
+async def append_thread_turn(
+    req: ThreadAppendRequest,
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Append a new user prompt to an existing thread.
+    """
+    try:
+        result = await append_turn(
+            thread_id=req.thread_id,
+            user_prompt=req.user_prompt,
+            session=session,
+            vault_path=settings.VAULT_PATH,
+            tz_name=req.timezone or "Asia/Kolkata"
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.post("/api/threads/deliver")
+async def deliver_thread_response(
+    req: ThreadDeliverRequest,
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Write the AI response into the specified turn of a thread.
+    """
+    try:
+        result = await deliver_response(
+            thread_id=req.thread_id,
+            turn_number=req.turn_number,
+            ai_response=req.ai_response,
+            session=session,
+            vault_path=settings.VAULT_PATH,
+            tz_name=req.timezone or "Asia/Kolkata"
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/api/threads")
+async def get_threads(
+    user: Optional[str] = Query(None),
+    limit: int = 50,
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    List all conversation threads, optionally filtered by user.
+    """
+    threads = await list_threads(user=user, session=session, limit=limit)
+    return {"count": len(threads), "threads": threads}
+
+@app.get("/api/threads/{thread_id}")
+async def get_thread_by_id(
+    thread_id: str,
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Get full thread detail including all turns.
+    """
+    detail = await get_thread_detail(thread_id=thread_id, session=session)
+    if not detail:
+        raise HTTPException(status_code=404, detail=f"Thread '{thread_id}' not found.")
+    return detail
+
+@app.get("/threads", response_class=HTMLResponse)
+async def threads_dashboard():
+    """
+    Serve the live thread monitoring dashboard.
+    """
+    html_path = os.path.join(os.path.dirname(__file__), "static", "threads.html")
+    if not os.path.exists(html_path):
+        raise HTTPException(status_code=404, detail="Dashboard not found.")
+    with open(html_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 # --- Mount Remote MCP Endpoints ---
 sec_settings = TransportSecuritySettings(allowed_hosts=["*"], enable_dns_rebinding_protection=False)
