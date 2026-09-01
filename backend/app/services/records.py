@@ -112,7 +112,21 @@ source_files:
             pass
 
     # Dual-save & append into conversation threads in vault/threads/ & PostgreSQL
-    thread_title = (topics[0].replace("-", " ").title()) if (topics and topics[0] != "skincare-wiki") else prompt[:60].strip()
+    if topics and len(topics) > 1 and topics[0] not in ["skincare-wiki", "note", "conversation"]:
+        # Combine top 2-3 specific topics e.g. "Askcruz Architecture Pipelines"
+        thread_title = " ".join([t.replace("-", " ").title() for t in topics[:3]])
+    elif topics and topics[0] not in ["skincare-wiki", "note", "conversation"]:
+        # If single topic, create specific title with prompt keywords
+        prompt_words = [w for w in prompt.replace("\n", " ").split() if len(w) > 3][:3]
+        if prompt_words and prompt_words[0].lower() not in topics[0].lower():
+            thread_title = f"{topics[0].replace('-', ' ').title()} {' '.join(prompt_words).title()}"
+        else:
+            thread_title = topics[0].replace("-", " ").title()
+    else:
+        # Fallback to prompt essence
+        first_line = prompt.strip().split("\n")[0]
+        thread_title = first_line[:50].strip()
+
     try:
         await save_thread_turn(
             user="shubh",

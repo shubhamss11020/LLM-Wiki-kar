@@ -178,11 +178,17 @@ def create_partition_mcp_server(
             pass
 
         try:
+            actual_topics = list(topics) if topics else []
+            if title and title not in actual_topics:
+                actual_topics.insert(0, title)
+            if not actual_topics:
+                actual_topics = ["conversation"]
+
             async with AsyncSessionLocal() as session:
                 res = await save_generation_record(
                     prompt=actual_prompt,
                     response=actual_response,
-                    topics=topics or ["skincare"],
+                    topics=actual_topics,
                     source_files=source_files or [],
                     vault_path=settings.VAULT_PATH,
                     session=session
