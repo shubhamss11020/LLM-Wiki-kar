@@ -2,8 +2,8 @@
 thread_id: "thr-b6ae3d57"
 user: "shubh"
 title: "Explain the difference between Retinol and Bakuchiol from th"
-created: "2026-08-31T15:20:40.897170+05:30"
-last_updated: "2026-08-31T15:20:40.897170+05:30"
+created: "2026-08-31T05:50:40.897170-04:00"
+last_updated: "2026-08-31T05:50:40.897170-04:00"
 turn_count: 1
 ---
 
@@ -11,7 +11,7 @@ turn_count: 1
 
 ---
 
-## Turn 1 — 15:20:40
+## Turn 1 — 05:50:40
 
 **User:**
 Explain the difference between Retinol and Bakuchiol from the knowledge base for sensitive or acne-prone skin.
