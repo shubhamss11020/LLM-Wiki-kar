@@ -399,7 +399,7 @@ async def handle_request(req: dict) -> Optional[dict]:
             "result": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "knowledge-wiki-mcp", "version": "1.0.0"}
+                "serverInfo": {"name": "threads-ov", "version": "1.0.0"}
             }
         }
     elif method == "notifications/initialized":

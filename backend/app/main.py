@@ -267,6 +267,12 @@ mcp_3 = create_partition_mcp_server(
     tier_title="MCP 3: Tier 3 Only (Lips, Eyes, Climate Wear & Cultural Guides)", 
     path_prefix="/mcp3"
 )
+mcp_threads_ov = create_partition_mcp_server(
+    name="threads-ov", 
+    allowed_partitions=[1, 2, 3], 
+    tier_title="Threads-OV Universal Second-Brain Transcript & Knowledge Vault", 
+    path_prefix="/threads-ov"
+)
 
 # --- Lifespan for Database and Remote MCP Session Managers ---
 @asynccontextmanager
@@ -277,7 +283,8 @@ async def lifespan(app: FastAPI):
             await stack.enter_async_context(mcp_1.session_manager.run())
             await stack.enter_async_context(mcp_2.session_manager.run())
             await stack.enter_async_context(mcp_3.session_manager.run())
-            logger.info("All 3 Hierarchical Remote MCP partition session managers started successfully.")
+            await stack.enter_async_context(mcp_threads_ov.session_manager.run())
+            logger.info("All Hierarchical Remote MCP partition session managers (including Threads-OV) started successfully.")
             yield
     except Exception as e:
         logger.error(f"MCP session manager failed: {e}", exc_info=True)
@@ -613,6 +620,12 @@ app.mount("/tier2", mcp_2.streamable_http_app(transport_security=sec_settings))
 app.mount("/mcp3", mcp_3.streamable_http_app(transport_security=sec_settings))
 app.mount("/tier3", mcp_3.streamable_http_app(transport_security=sec_settings))
 
-# Root endpoint (MCP 1 - All Tiers)
+# Threads-OV (Universal Transcript & Second-Brain Vault)
+app.mount("/threads-ov", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
+app.mount("/threads_ov", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
+app.mount("/thread-logger", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
+app.mount("/mcp-threads-ov", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
+
+# Root endpoint (MCP 1 - All Tiers & Universal Access)
 app.mount("/", mcp_1.streamable_http_app(transport_security=sec_settings))
 

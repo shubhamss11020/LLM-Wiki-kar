@@ -77,8 +77,18 @@ def install():
             "WIKI_API_KEY": "mcp3-tier3-only-key"
         }
     }
-    # MCP 4: Thread Logger (auto-saves every conversation thread)
+    # MCP 4: Thread Logger / Threads-OV (Universal Transcript Vault)
     thread_logger_path = os.path.join(repo_root, "mcp-server", "thread_logger.py")
+    current_config["mcpServers"]["threads-ov"] = {
+        "command": sys.executable or "python",
+        "args": [server_path],
+        "env": {
+            "BACKEND_API_URL": backend_url,
+            "THREAD_USER": "shubh",
+            "VAULT_PATH": os.path.join(repo_root, "vault"),
+            "WIKI_API_KEY": "mcp1-all-tiers-key"
+        }
+    }
     current_config["mcpServers"]["thread-logger"] = {
         "command": sys.executable or "python",
         "args": [thread_logger_path],
@@ -100,6 +110,7 @@ def install():
     print(f"Thread Logger: {thread_logger_path}")
     print(f"Live Backend: {backend_url}")
     print("\nConfigured MCP Servers:")
+    print(" - threads-ov: Universal Transcript & Second-Brain Vault (All queries)")
     print(" - mcp-1-all-tiers: Full Access (Tier 1 + Tier 2 + Tier 3)")
     print(" - mcp-2-tier2-3: Segregated Access (Tier 2 & Tier 3 only)")
     print(" - mcp-3-tier3-only: Restricted Access (Tier 3 only)")
