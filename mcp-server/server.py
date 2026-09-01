@@ -54,7 +54,7 @@ def _save_local_thread_md(local_vault: str, user: str, title: str, prompt: str, 
     """Creates or appends to vault/threads/<user>_<thread_name>_<date>.md and auto-commits to Git."""
     try:
         import datetime, pytz
-        tz = pytz.timezone("Asia/Kolkata")
+        tz = pytz.timezone("America/New_York")
         now = datetime.datetime.now(tz)
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H:%M:%S")
@@ -237,7 +237,7 @@ async def tool_save_generation(
     try:
         local_vault = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "vault"))
         if os.path.exists(local_vault):
-            tz = pytz.timezone("Asia/Kolkata")
+            tz = pytz.timezone("America/New_York")
             now = datetime.datetime.now(tz)
 
             # 1. Save or append to vault/threads/

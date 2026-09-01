@@ -17,7 +17,7 @@ async def test_thread_markdown_lifecycle():
     prompt_1 = "Give best skincare product for acne / oily skin"
     response_1 = "No dedicated treatment SKU exists in the wiki for acne/oily skin. Salicylic Acid (2% BHA) dissolves sebum plugs."
 
-    tz = pytz.timezone("Asia/Kolkata")
+    tz = pytz.timezone("America/New_York")
     now = datetime.datetime.now(tz)
     date_str = now.strftime("%Y-%m-%d")
     slug = _slugify(title)
@@ -32,12 +32,12 @@ async def test_thread_markdown_lifecycle():
         user_prompt=prompt_1,
         ai_response=response_1,
         vault_path=settings.VAULT_PATH,
-        tz_name="Asia/Kolkata"
+        tz_name="America/New_York"
     )
     print(f"[PASS] Turn 1 Saved: Status='{res1['status']}', Thread ID='{res1['thread_id']}', File='{res1['file_path']}'")
     assert os.path.exists(res1["file_path"]), f"Thread file {res1['file_path']} must exist on disk!"
 
-    tz = pytz.timezone("Asia/Kolkata")
+    tz = pytz.timezone("America/New_York")
     now = datetime.datetime.now(tz)
     date_str = now.strftime("%Y-%m-%d")
     slug = _slugify(title)
@@ -57,7 +57,7 @@ async def test_thread_markdown_lifecycle():
         ai_response=response_2,
         thread_id=res1["thread_id"],
         vault_path=settings.VAULT_PATH,
-        tz_name="Asia/Kolkata"
+        tz_name="America/New_York"
     )
     print(f"[PASS] Turn 2 Appended: Status='{res2['status']}', Turn Number={res2['turn_number']}, File='{res2['file_path']}'")
 

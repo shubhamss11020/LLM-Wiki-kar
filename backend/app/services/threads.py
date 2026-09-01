@@ -125,7 +125,7 @@ async def save_thread_turn(
     thread_id: Optional[str] = None,
     session: Optional[AsyncSession] = None,
     vault_path: Optional[str] = None,
-    tz_name: str = "Asia/Kolkata"
+    tz_name: str = "America/New_York"
 ) -> Dict[str, Any]:
     """
     Main function to save or append an interaction turn to a thread.
@@ -322,7 +322,7 @@ async def create_thread(
     user_prompt: str,
     session: AsyncSession,
     vault_path: Optional[str] = None,
-    tz_name: str = "Asia/Kolkata"
+    tz_name: str = "America/New_York"
 ) -> Dict[str, Any]:
     """Create a new thread with pending turn 1."""
     return await save_thread_turn(
@@ -341,7 +341,7 @@ async def append_turn(
     user_prompt: str,
     session: AsyncSession,
     vault_path: Optional[str] = None,
-    tz_name: str = "Asia/Kolkata"
+    tz_name: str = "America/New_York"
 ) -> Dict[str, Any]:
     """Append a pending prompt to an existing thread."""
     tz = pytz.timezone(tz_name)
@@ -408,7 +408,7 @@ async def deliver_response(
     ai_response: str,
     session: AsyncSession,
     vault_path: Optional[str] = None,
-    tz_name: str = "Asia/Kolkata"
+    tz_name: str = "America/New_York"
 ) -> Dict[str, Any]:
     """Write the completed AI response into the specified turn."""
     tz = pytz.timezone(tz_name)
@@ -479,7 +479,7 @@ async def list_threads(
     user: Optional[str] = None,
     session: Optional[AsyncSession] = None,
     limit: int = 50,
-    tz_name: str = "Asia/Kolkata"
+    tz_name: str = "America/New_York"
 ) -> List[Dict[str, Any]]:
     """List all threads, optionally filtered by user."""
     if not session:
@@ -510,7 +510,7 @@ async def list_threads(
 async def get_thread_detail(
     thread_id: str,
     session: AsyncSession,
-    tz_name: str = "Asia/Kolkata"
+    tz_name: str = "America/New_York"
 ) -> Optional[Dict[str, Any]]:
     """Get a full thread with all turns."""
     tz = pytz.timezone(tz_name)

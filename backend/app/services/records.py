@@ -16,7 +16,7 @@ async def save_generation_record(
     source_files: Optional[List[str]] = None,
     vault_path: Optional[str] = None,
     session: Optional[AsyncSession] = None,
-    tz_name: str = "Asia/Kolkata"
+    tz_name: str = "America/New_York"
 ) -> Dict[str, Any]:
     """
     Saves an LLM interaction record simultaneously to:

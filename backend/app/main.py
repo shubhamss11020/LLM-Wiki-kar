@@ -72,7 +72,7 @@ def create_partition_mcp_server(
                         ai_response="_Processing knowledge base search..._",
                         session=session,
                         vault_path=settings.VAULT_PATH,
-                        tz_name="Asia/Kolkata"
+                        tz_name="America/New_York"
                     )
                 except Exception:
                     pass
@@ -180,7 +180,7 @@ def create_partition_mcp_server(
             raw_dir = os.path.join(settings.VAULT_PATH, "..", "raw", "claude-chat-queries")
             os.makedirs(raw_dir, exist_ok=True)
             import datetime, pytz
-            now = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+            now = datetime.datetime.now(pytz.timezone("America/New_York"))
             raw_file = os.path.join(raw_dir, f"{now.strftime('%Y%m%dT%H%M%S')}_transcript.md")
             with open(raw_file, "w", encoding="utf-8") as f:
                 f.write(f"# Chat Transcript: {now.isoformat()}\n\n## User\n{actual_prompt}\n\n## Response\n{actual_response}\n")
@@ -301,24 +301,24 @@ class RecordCreateRequest(BaseModel):
     response: str
     topics: Optional[List[str]] = None
     source_files: Optional[List[str]] = None
-    timezone: Optional[str] = "Asia/Kolkata"
+    timezone: Optional[str] = "America/New_York"
 
 class ThreadCreateRequest(BaseModel):
     user: str
     title: str
     user_prompt: str
-    timezone: Optional[str] = "Asia/Kolkata"
+    timezone: Optional[str] = "America/New_York"
 
 class ThreadAppendRequest(BaseModel):
     thread_id: str
     user_prompt: str
-    timezone: Optional[str] = "Asia/Kolkata"
+    timezone: Optional[str] = "America/New_York"
 
 class ThreadDeliverRequest(BaseModel):
     thread_id: str
     turn_number: int
     ai_response: str
-    timezone: Optional[str] = "Asia/Kolkata"
+    timezone: Optional[str] = "America/New_York"
 
 class ThreadInteractionRequest(BaseModel):
     user: Optional[str] = "shubh"
@@ -326,7 +326,7 @@ class ThreadInteractionRequest(BaseModel):
     user_prompt: str
     ai_response: str
     thread_id: Optional[str] = None
-    timezone: Optional[str] = "Asia/Kolkata"
+    timezone: Optional[str] = "America/New_York"
 
 def resolve_allowed_partitions(x_api_key: Optional[str] = Header(None)) -> Optional[List[int]]:
     """
@@ -498,7 +498,7 @@ async def create_or_append_thread(
         user_prompt=req.user_prompt,
         session=session,
         vault_path=settings.VAULT_PATH,
-        tz_name=req.timezone or "Asia/Kolkata"
+        tz_name=req.timezone or "America/New_York"
     )
     return result
 
@@ -516,7 +516,7 @@ async def append_thread_turn(
             user_prompt=req.user_prompt,
             session=session,
             vault_path=settings.VAULT_PATH,
-            tz_name=req.timezone or "Asia/Kolkata"
+            tz_name=req.timezone or "America/New_York"
         )
         return result
     except ValueError as e:
@@ -537,7 +537,7 @@ async def deliver_thread_response(
             ai_response=req.ai_response,
             session=session,
             vault_path=settings.VAULT_PATH,
-            tz_name=req.timezone or "Asia/Kolkata"
+            tz_name=req.timezone or "America/New_York"
         )
         return result
     except ValueError as e:
@@ -560,7 +560,7 @@ async def save_thread_interaction_endpoint(
         thread_id=req.thread_id,
         session=session,
         vault_path=settings.VAULT_PATH,
-        tz_name=req.timezone or "Asia/Kolkata"
+        tz_name=req.timezone or "America/New_York"
     )
     return result
 

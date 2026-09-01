@@ -33,7 +33,7 @@ async def sync_remote_to_local_vault():
     print(f"[*] Syncing threads from {BACKEND_API_URL} to local vault: {VAULT_PATH}...")
     threads_dir = os.path.join(VAULT_PATH, "threads")
     os.makedirs(threads_dir, exist_ok=True)
-    tz = pytz.timezone("Asia/Kolkata")
+    tz = pytz.timezone("America/New_York")
 
     async with httpx.AsyncClient(base_url=BACKEND_API_URL, timeout=30.0) as client:
         # 1. Fetch remote threads
