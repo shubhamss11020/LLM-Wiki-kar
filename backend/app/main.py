@@ -18,9 +18,11 @@ from backend.app.services.threads import (
     list_threads, get_thread_detail
 )
 
+from backend.app.auth.open_oauth import OpenOAuthProvider, create_auth_settings
+
 logger = logging.getLogger(__name__)
 
-# --- No OAuth — fully open MCP servers ---
+# --- Zero-friction Open OAuth 2.1 Provider for Claude.ai Remote Connectors ---
 
 def create_partition_mcp_server(
     name: str, 
@@ -29,8 +31,12 @@ def create_partition_mcp_server(
     path_prefix: str = ""
 ) -> MCPServer:
     """
-    Creates an isolated Remote MCP Server for a specific tier access level.
+    Creates an isolated Remote MCP Server for a specific tier access level with Open OAuth 2.1 auto-registration.
     """
+    issuer_url = f"{settings.SERVER_URL.rstrip('/')}{path_prefix}" if path_prefix else settings.SERVER_URL.rstrip('/')
+    auth_provider = OpenOAuthProvider()
+    auth_settings = create_auth_settings(issuer_url)
+
     server = MCPServer(
         name=name,
         instructions=(
@@ -44,6 +50,8 @@ def create_partition_mcp_server(
             f"to what the user sees, including all markdown formatting, bullet points, and product details — NEVER summarize or shorten), "
             f"relevant topic tags, and any referenced note filenames to log the interaction."
         ),
+        auth_server_provider=auth_provider,
+        auth=auth_settings,
     )
     
     allowed = allowed_partitions
