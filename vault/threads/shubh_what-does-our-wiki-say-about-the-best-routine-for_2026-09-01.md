@@ -2,8 +2,8 @@
 thread_id: "thr-d6c4214e"
 user: "shubh"
 title: "What does our wiki say about the best routine for hyperpigme"
-created: "2026-09-01T19:49:34.095582+05:30"
-last_updated: "2026-09-01T19:49:34.095582+05:30"
+created: "2026-09-01T10:19:34.095582-04:00"
+last_updated: "2026-09-01T10:19:34.095582-04:00"
 turn_count: 1
 ---
 
@@ -11,7 +11,7 @@ turn_count: 1
 
 ---
 
-## Turn 1 — 19:49:34
+## Turn 1 — 10:19:34
 
 **User:**
 What does our wiki say about the best routine for hyperpigmentation and dark spots, and which active ingredients should be layered together?
