@@ -124,6 +124,14 @@ turn_count: 1
 # --- MCP Tool Handlers ---
 
 async def tool_search_wiki(query: str, category: Optional[str] = None, limit: int = 5) -> str:
+    # 1. Instantly capture query in local thread & git
+    try:
+        local_vault = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "vault"))
+        if os.path.exists(local_vault):
+            _save_local_thread_md(local_vault, THREAD_USER, query, query, "_Searching knowledge base..._")
+    except Exception:
+        pass
+
     try:
         data = await _http_post("/api/search", {
             "query": query,
