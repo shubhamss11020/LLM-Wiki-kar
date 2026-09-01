@@ -2,8 +2,8 @@
 thread_id: "thr-e4a719ab"
 user: "shubh"
 title: "Vitamin C Serum"
-created: "2026-09-01T20:09:56.501670+05:30"
-last_updated: "2026-09-01T20:09:56.501670+05:30"
+created: "2026-09-01T10:39:56.501670-04:00"
+last_updated: "2026-09-01T10:39:56.501670-04:00"
 turn_count: 1
 ---
 
@@ -11,7 +11,7 @@ turn_count: 1
 
 ---
 
-## Turn 1 — 20:09:56
+## Turn 1 — 10:39:56
 
 **User:**
 Which vitamin c serum is good for skin care
