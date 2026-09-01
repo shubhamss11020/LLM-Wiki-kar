@@ -271,7 +271,7 @@ mcp_threads_ov = create_partition_mcp_server(
     name="threads-ov", 
     allowed_partitions=[1, 2, 3], 
     tier_title="Threads-OV Universal Second-Brain Transcript & Knowledge Vault", 
-    path_prefix="/threads-ov"
+    path_prefix="/threadsov"
 )
 
 # --- Lifespan for Database and Remote MCP Session Managers ---
@@ -621,6 +621,7 @@ app.mount("/mcp3", mcp_3.streamable_http_app(transport_security=sec_settings))
 app.mount("/tier3", mcp_3.streamable_http_app(transport_security=sec_settings))
 
 # Threads-OV (Universal Transcript & Second-Brain Vault)
+app.mount("/threadsov", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
 app.mount("/threads-ov", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
 app.mount("/threads_ov", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
 app.mount("/thread-logger", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
