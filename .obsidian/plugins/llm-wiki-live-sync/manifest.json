@@ -1,0 +1,9 @@
+{
+  "id": "llm-wiki-live-sync",
+  "name": "LLM Wiki Real-Time Sync",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Continuously syncs Claude and Cruz Brain threads from Neon DB / Render into your Obsidian vault in real time.",
+  "author": "Cruz Brain",
+  "isDesktopOnly": false
+}
