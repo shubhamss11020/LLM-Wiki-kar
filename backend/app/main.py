@@ -121,7 +121,7 @@ def create_partition_mcp_server(
         source_files: Optional[List[str]] = None
     ) -> str:
         """
-        MANDATORY: Log the interaction, prompt, response, topics, and source files into vault/generated/ and database.
+        MANDATORY: Log the interaction into vault/threads/, vault/generated/, and database.
         Parameters:
         - prompt: The exact user prompt/question verbatim.
         - response: CRITICAL: The EXACT, FULL, VERBATIM response text (100% ditto, word-for-word, including all markdown, paragraphs, lists, and recommendations — NEVER summarize or shorten).
@@ -138,10 +138,50 @@ def create_partition_mcp_server(
                     vault_path=settings.VAULT_PATH,
                     session=session
                 )
-                return f"Successfully saved generation record '{res['record_id']}' to '{res['file_name']}'."
+                return f"Successfully saved generation and updated thread in vault/threads/ ('{res['record_id']}')."
         except Exception as e:
             logger.error(f"MCP save_generation error ({name}): {e}", exc_info=True)
             return f"Error saving generation record: {str(e)}"
+
+    @server.tool()
+    async def save_chat_transcript(
+        prompt: Optional[str] = None,
+        response: Optional[str] = None,
+        transcript: Optional[str] = None,
+        title: Optional[str] = None,
+        topics: Optional[List[str]] = None,
+        source_files: Optional[List[str]] = None
+    ) -> str:
+        """
+        Save complete chat interaction into vault/threads/, raw/claude-chat-queries/, and database.
+        """
+        actual_prompt = prompt or (transcript.split("\n")[0] if transcript else "Skincare Inquiry")
+        actual_response = response or transcript or "Response recorded."
+        try:
+            raw_dir = os.path.join(settings.VAULT_PATH, "..", "raw", "claude-chat-queries")
+            os.makedirs(raw_dir, exist_ok=True)
+            import datetime, pytz
+            now = datetime.datetime.now(pytz.timezone("Asia/Kolkata"))
+            raw_file = os.path.join(raw_dir, f"{now.strftime('%Y%m%dT%H%M%S')}_transcript.md")
+            with open(raw_file, "w", encoding="utf-8") as f:
+                f.write(f"# Chat Transcript: {now.isoformat()}\n\n## User\n{actual_prompt}\n\n## Response\n{actual_response}\n")
+        except Exception:
+            pass
+
+        try:
+            async with AsyncSessionLocal() as session:
+                res = await save_generation_record(
+                    prompt=actual_prompt,
+                    response=actual_response,
+                    topics=topics or ["skincare"],
+                    source_files=source_files or [],
+                    vault_path=settings.VAULT_PATH,
+                    session=session
+                )
+                return f"Successfully saved chat transcript to vault/threads/ and PostgreSQL (Record: {res['record_id']})."
+        except Exception as e:
+            logger.error(f"MCP save_chat_transcript error ({name}): {e}", exc_info=True)
+            return f"Error saving transcript: {str(e)}"
 
     @server.tool()
     async def get_records_by_date(

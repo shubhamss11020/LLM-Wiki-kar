@@ -356,6 +356,21 @@ TOOLS_LIST = [
             },
             "required": ["prompt", "response"]
         }
+    },
+    {
+        "name": "save_chat_transcript",
+        "description": "Save complete chat interaction into vault/threads/, raw/claude-chat-queries/, and the database.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prompt": {"type": "string", "description": "The user prompt."},
+                "response": {"type": "string", "description": "The verbatim AI response."},
+                "transcript": {"type": "string", "description": "Optional full transcript string."},
+                "title": {"type": "string", "description": "Optional thread title."},
+                "topics": {"type": "array", "items": {"type": "string"}, "description": "Topic tags."},
+                "source_files": {"type": "array", "items": {"type": "string"}, "description": "Referenced files."}
+            }
+        }
     }
 ]
 
@@ -395,8 +410,10 @@ async def handle_request(req: dict) -> Optional[dict]:
             res = await tool_get_records_by_date(args.get("start_date"), args.get("end_date"), args.get("topic"))
         elif tool_name == "refresh_vault":
             res = await tool_refresh_vault()
-        elif tool_name == "save_generation":
-            res = await tool_save_generation(args.get("prompt"), args.get("response"), args.get("topics"), args.get("source_files"))
+        elif tool_name in ["save_generation", "save_chat_transcript"]:
+            prompt_val = args.get("prompt") or (args.get("transcript", "").split("\n")[0] if args.get("transcript") else "Chat Query")
+            resp_val = args.get("response") or args.get("transcript") or "Response recorded."
+            res = await tool_save_generation(prompt_val, resp_val, args.get("topics"), args.get("source_files"))
         else:
             res = f"Unknown tool: {tool_name}"
         return {"jsonrpc": "2.0", "id": req_id, "result": {"content": [{"type": "text", "text": res}]}}
