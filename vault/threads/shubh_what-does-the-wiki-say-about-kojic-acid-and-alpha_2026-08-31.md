@@ -2,8 +2,8 @@
 thread_id: "thr-eb223755"
 user: "shubh"
 title: "What does the wiki say about Kojic Acid and Alpha Arbutin fo"
-created: "2026-08-31T15:19:44.350197+05:30"
-last_updated: "2026-08-31T15:19:44.350197+05:30"
+created: "2026-08-31T05:49:44.350197-04:00"
+last_updated: "2026-08-31T05:49:44.350197-04:00"
 turn_count: 1
 ---
 
@@ -11,7 +11,7 @@ turn_count: 1
 
 ---
 
-## Turn 1 — 15:19:44
+## Turn 1 — 05:49:44
 
 **User:**
 What does the wiki say about Kojic Acid and Alpha Arbutin for hyperpigmentation and melasma? List the recommended concentrations and pH requirements.
