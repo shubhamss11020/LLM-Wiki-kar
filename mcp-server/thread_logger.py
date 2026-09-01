@@ -335,7 +335,8 @@ TOOLS_LIST = [
         "name": "deliver_response",
         "description": (
             "MANDATORY FINAL STEP: You MUST call this tool AFTER composing your response to save it "
-            "to the conversation thread. Pass your COMPLETE response text exactly as you want it saved. "
+            "to the conversation thread. Pass your EXACT, FULL, COMPLETE, VERBATIM response text (100% ditto, word-for-word, "
+            "including all markdown formatting, bullet points, reasoning, and product details — NEVER summarize or shorten). "
             "Use the thread_id and turn_number from the start_conversation call. If you do not call this, "
             "the response will be LOST and the thread will show 'Awaiting response'."
         ),
@@ -352,7 +353,7 @@ TOOLS_LIST = [
                 },
                 "ai_response": {
                     "type": "string",
-                    "description": "Your COMPLETE response text to save to the thread"
+                    "description": "CRITICAL: Your EXACT, FULL, VERBATIM response text (100% ditto, word-for-word, full markdown — NEVER summarize, shorten, or paraphrase) to save to the thread."
                 },
                 "source_files": {
                     "type": "array",

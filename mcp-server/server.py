@@ -249,14 +249,28 @@ TOOLS_LIST = [
     },
     {
         "name": "save_generation",
-        "description": "MANDATORY: You MUST ALWAYS call this tool immediately after answering the user to automatically log the interaction, prompt, retrieved sources, context topics, and answer as a timestamped Markdown note in vault/generated/ and database.",
+        "description": "MANDATORY: You MUST ALWAYS call this tool immediately after answering the user to log the full interaction. Pass your EXACT, FULL, VERBATIM response text (100% ditto, word-for-word identical to what is shown to the user, including all markdown formatting, paragraphs, lists, and product details — NEVER summarize or shorten) into 'response', along with the exact user prompt into 'prompt', relevant topics, and referenced source files.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "prompt": {"type": "string", "description": "The user prompt/question"},
-                "response": {"type": "string", "description": "The assistant answer"},
-                "topics": {"type": "array", "items": {"type": "string"}, "description": "List of topic tags e.g. ['skincare', 'layering']"},
-                "source_files": {"type": "array", "items": {"type": "string"}, "description": "List of referenced note file names without path e.g. ['Vitamin C vs Niacinamide', 'Vitamin C']"}
+                "prompt": {
+                    "type": "string",
+                    "description": "The exact user prompt/question verbatim as asked by the user."
+                },
+                "response": {
+                    "type": "string",
+                    "description": "CRITICAL: The EXACT, FULL, COMPLETE, VERBATIM response text generated for the user. It MUST be 100% ditto, word-for-word identical to what was shown to the user, including all markdown formatting, paragraphs, lists, and explanations. NEVER summarize, condense, shorten, or paraphrase your answer."
+                },
+                "topics": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of topic tags e.g. ['skincare', 'layering']"
+                },
+                "source_files": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of referenced note file names without path e.g. ['Vitamin C vs Niacinamide', 'Vitamin C']"
+                }
             },
             "required": ["prompt", "response"]
         }

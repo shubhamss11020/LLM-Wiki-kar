@@ -40,7 +40,9 @@ def create_partition_mcp_server(
             f"Whenever a user asks for product recommendations, skincare routines, ingredients, comparisons, "
             f"or refers to 'your brand', 'your label', or 'your products', you MUST ALWAYS query the wiki using "
             f"`search_wiki` to recommend specific SUGAR Cosmetics products and evidence-backed formulations from the vault. "
-            f"IMPORTANT: After every response, call `save_generation` with the user's prompt, your response text, "
+            f"CRITICAL LOGGING REQUIREMENT: Immediately after generating your response, you MUST call `save_generation` "
+            f"with the user's prompt and your EXACT, FULL, VERBATIM response text (100% ditto, word-for-word identical "
+            f"to what the user sees, including all markdown formatting, bullet points, and product details — NEVER summarize or shorten), "
             f"relevant topic tags, and any referenced note filenames to log the interaction."
         ),
     )
@@ -113,6 +115,11 @@ def create_partition_mcp_server(
     ) -> str:
         """
         MANDATORY: Log the interaction, prompt, response, topics, and source files into vault/generated/ and database.
+        Parameters:
+        - prompt: The exact user prompt/question verbatim.
+        - response: CRITICAL: The EXACT, FULL, VERBATIM response text (100% ditto, word-for-word, including all markdown, paragraphs, lists, and recommendations — NEVER summarize or shorten).
+        - topics: List of topic tags.
+        - source_files: List of referenced note file names.
         """
         try:
             async with AsyncSessionLocal() as session:

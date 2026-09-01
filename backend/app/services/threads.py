@@ -318,15 +318,25 @@ async def deliver_response(
     }
 
 
+def _format_dt_tz(dt: Optional[datetime.datetime], tz: pytz.BaseTzInfo) -> str:
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=pytz.utc).astimezone(tz).isoformat()
+    return dt.astimezone(tz).isoformat()
+
+
 async def list_threads(
     user: Optional[str] = None,
     session: Optional[AsyncSession] = None,
-    limit: int = 50
+    limit: int = 50,
+    tz_name: str = "Asia/Kolkata"
 ) -> List[Dict[str, Any]]:
     """List all threads, optionally filtered by user."""
     if not session:
         return []
 
+    tz = pytz.timezone(tz_name)
     stmt = select(ThreadModel).order_by(ThreadModel.last_updated.desc()).limit(limit)
     if user:
         stmt = stmt.where(ThreadModel.user == user)
@@ -341,8 +351,8 @@ async def list_threads(
             "title": t.title,
             "turn_count": t.turn_count,
             "file_path": t.file_path,
-            "created_at": t.created_at.isoformat() if t.created_at else "",
-            "last_updated": t.last_updated.isoformat() if t.last_updated else "",
+            "created_at": _format_dt_tz(t.created_at, tz),
+            "last_updated": _format_dt_tz(t.last_updated, tz),
         }
         for t in threads
     ]
@@ -368,16 +378,12 @@ async def get_thread_detail(
 
     turns = []
     for t in thread.turns:
-        t_tz = t.created_at.replace(tzinfo=pytz.utc).astimezone(tz) if t.created_at else None
         turns.append({
             "turn_number": t.turn_number,
             "user_prompt": t.user_prompt,
             "ai_response": t.ai_response,
-            "created_at": t_tz.isoformat() if t_tz else "",
+            "created_at": _format_dt_tz(t.created_at, tz),
         })
-
-    created_tz = thread.created_at.replace(tzinfo=pytz.utc).astimezone(tz) if thread.created_at else None
-    updated_tz = thread.last_updated.replace(tzinfo=pytz.utc).astimezone(tz) if thread.last_updated else None
 
     return {
         "thread_id": thread.thread_id,
@@ -385,7 +391,8 @@ async def get_thread_detail(
         "title": thread.title,
         "turn_count": thread.turn_count,
         "file_path": thread.file_path,
-        "created_at": created_tz.isoformat() if created_tz else "",
-        "last_updated": updated_tz.isoformat() if updated_tz else "",
+        "created_at": _format_dt_tz(thread.created_at, tz),
+        "last_updated": _format_dt_tz(thread.last_updated, tz),
         "turns": turns,
     }
+
