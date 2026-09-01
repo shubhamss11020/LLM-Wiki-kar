@@ -598,28 +598,54 @@ async def get_thread_by_id(
 # --- Mount Remote MCP Endpoints ---
 sec_settings = TransportSecuritySettings(allowed_hosts=["*"], enable_dns_rebinding_protection=False)
 
-# MCP 1 (All Tiers: 1, 2, 3)
-app.mount("/mcp1", mcp_1.streamable_http_app(transport_security=sec_settings))
-app.mount("/tier1", mcp_1.streamable_http_app(transport_security=sec_settings))
+# Helper to forward direct requests to MCP sub-app
+def forward_to_mcp(subapp):
+    async def handler(request: Request):
+        scope = dict(request.scope)
+        scope['path'] = '/mcp'
+        scope['raw_path'] = b'/mcp'
+        status_code = 200
+        headers = []
+        body_chunks = []
+        async def send(message):
+            nonlocal status_code, headers
+            if message['type'] == 'http.response.start':
+                status_code = message['status']
+                headers = message.get('headers', [])
+            elif message['type'] == 'http.response.body':
+                body_chunks.append(message.get('body', b''))
+        await subapp(scope, request.receive, send)
+        from fastapi import Response
+        return Response(content=b''.join(body_chunks), status_code=status_code, headers=dict([(k.decode() if isinstance(k, bytes) else k, v.decode() if isinstance(v, bytes) else v) for k, v in headers]))
+    return handler
 
-# MCP 2 (Tier 2 & 3 only)
-app.mount("/mcp2", mcp_2.streamable_http_app(transport_security=sec_settings))
-app.mount("/tier2", mcp_2.streamable_http_app(transport_security=sec_settings))
+# MCP 1 & Tier 1
+mcp1_app = mcp_1.streamable_http_app(transport_security=sec_settings)
+app.add_api_route("/mcp1", forward_to_mcp(mcp1_app), methods=["GET", "POST", "DELETE"])
+app.add_api_route("/tier1", forward_to_mcp(mcp1_app), methods=["GET", "POST", "DELETE"])
+app.mount("/mcp1", mcp1_app)
+app.mount("/tier1", mcp1_app)
 
-# MCP 3 (Tier 3 only)
-app.mount("/mcp3", mcp_3.streamable_http_app(transport_security=sec_settings))
-app.mount("/tier3", mcp_3.streamable_http_app(transport_security=sec_settings))
+# MCP 2 & Tier 2
+mcp2_app = mcp_2.streamable_http_app(transport_security=sec_settings)
+app.add_api_route("/mcp2", forward_to_mcp(mcp2_app), methods=["GET", "POST", "DELETE"])
+app.add_api_route("/tier2", forward_to_mcp(mcp2_app), methods=["GET", "POST", "DELETE"])
+app.mount("/mcp2", mcp2_app)
+app.mount("/tier2", mcp2_app)
+
+# MCP 3 & Tier 3
+mcp3_app = mcp_3.streamable_http_app(transport_security=sec_settings)
+app.add_api_route("/mcp3", forward_to_mcp(mcp3_app), methods=["GET", "POST", "DELETE"])
+app.add_api_route("/tier3", forward_to_mcp(mcp3_app), methods=["GET", "POST", "DELETE"])
+app.mount("/mcp3", mcp3_app)
+app.mount("/tier3", mcp3_app)
 
 # Threads-OV (Universal Transcript & Second-Brain Vault)
-app.mount("/threadsov", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
-app.mount("/threads-ov", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
-app.mount("/threads_ov", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
-app.mount("/threads", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
-app.mount("/thread-vault", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
-app.mount("/cruz-brain", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
-app.mount("/thread-logger", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
-app.mount("/mcp-threads-ov", mcp_threads_ov.streamable_http_app(transport_security=sec_settings))
+threads_ov_app = mcp_threads_ov.streamable_http_app(transport_security=sec_settings)
+for prefix in ["/threadsov", "/threads-ov", "/threads_ov", "/threads", "/thread-vault", "/cruz-brain", "/thread-logger", "/mcp-threads-ov"]:
+    app.add_api_route(prefix, forward_to_mcp(threads_ov_app), methods=["GET", "POST", "DELETE"])
+    app.mount(prefix, threads_ov_app)
 
 # Root endpoint (MCP 1 - All Tiers & Universal Access)
-app.mount("/", mcp_1.streamable_http_app(transport_security=sec_settings))
+app.mount("/", mcp1_app)
 
