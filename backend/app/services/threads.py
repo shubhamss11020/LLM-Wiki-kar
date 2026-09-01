@@ -1,8 +1,8 @@
 """
 Thread persistence service.
 Dual-writes every conversation thread to:
-  1. A single Markdown file in vault/threads/ (appended per turn)
-  2. The threads + thread_turns tables in PostgreSQL / SQLite
+  1. A structured Markdown file in vault/threads/<user>_<thread_name>_<date>.md (appended per turn)
+  2. The threads + thread_turns tables in PostgreSQL with GIN / B-tree indexing
 """
 
 import os
@@ -13,7 +13,7 @@ import datetime
 import pytz
 from typing import List, Optional, Dict, Any
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -21,18 +21,17 @@ from backend.app.database.models import ThreadModel, ThreadTurnModel
 from backend.app.config import settings
 
 
-def _slugify(text: str, max_len: int = 40) -> str:
-    """Convert text to a filesystem-safe slug."""
+def _slugify(text: str, max_len: int = 50) -> str:
+    """Convert text to a clean filesystem-safe slug."""
     slug = re.sub(r"[^\w\s-]", "", text.lower().strip())
     slug = re.sub(r"[\s_]+", "-", slug)
-    return slug[:max_len].rstrip("-")
+    return slug[:max_len].rstrip("-") or "conversation"
 
 
 def _build_thread_md(thread_id: str, user: str, title: str,
                      created: str, last_updated: str,
                      turns: List[Dict[str, Any]]) -> str:
     """Render the full thread Markdown content from all turns."""
-    # YAML frontmatter
     md = (
         f"---\n"
         f"thread_id: \"{thread_id}\"\n"
@@ -61,10 +60,24 @@ def _build_thread_md(thread_id: str, user: str, title: str,
     return md
 
 
+def _git_commit_file(file_path: str, message: str) -> None:
+    """Auto-stages and commits the thread file into the Git repository in real time."""
+    try:
+        import subprocess
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        if os.path.exists(os.path.join(repo_root, ".git")):
+            rel_path = os.path.relpath(file_path, repo_root)
+            subprocess.run(["git", "add", rel_path], cwd=repo_root, capture_output=True, text=True, check=False)
+            subprocess.run(["git", "commit", "-m", message], cwd=repo_root, capture_output=True, text=True, check=False)
+    except Exception:
+        pass
+
+
 def _write_thread_file(thread_id: str, user: str, title: str,
                        created_iso: str, last_updated_iso: str,
                        turns: List[Dict[str, Any]],
                        vault_path: Optional[str] = None) -> str:
+    """Write or overwrite the full thread MD file in vault/threads/ and auto-commit to Git."""
     try:
         if vault_path is None:
             vault_path = settings.VAULT_PATH
@@ -89,9 +102,218 @@ def _write_thread_file(thread_id: str, user: str, title: str,
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(md_content)
 
+        _git_commit_file(file_path, f"thread: save {user}_{slug} ({len(turns)} turns)")
+
         return file_path
     except Exception:
         return ""
+
+
+def _format_dt_tz(dt: Optional[datetime.datetime], tz: pytz.BaseTzInfo) -> str:
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=pytz.utc).astimezone(tz).isoformat()
+    return dt.astimezone(tz).isoformat()
+
+
+async def save_thread_turn(
+    user: str,
+    title: str,
+    user_prompt: str,
+    ai_response: str,
+    thread_id: Optional[str] = None,
+    session: Optional[AsyncSession] = None,
+    vault_path: Optional[str] = None,
+    tz_name: str = "Asia/Kolkata"
+) -> Dict[str, Any]:
+    """
+    Main function to save or append an interaction turn to a thread.
+    - If thread_id or matching thread today exists: appends turn & rewrites MD.
+    - If new thread: creates <user>_<thread_name>_<date>.md & inserts to PostgreSQL.
+    """
+    tz = pytz.timezone(tz_name)
+    now = datetime.datetime.now(tz)
+    utc_now = now.astimezone(pytz.utc).replace(tzinfo=None)
+    time_str = now.strftime("%H:%M:%S")
+
+    clean_title = title.strip() if title else user_prompt[:60].strip()
+    if not clean_title:
+        clean_title = "Skincare Inquiry"
+
+    existing_thread: Optional[ThreadModel] = None
+
+    if session:
+        if thread_id:
+            stmt = select(ThreadModel).options(selectinload(ThreadModel.turns)).where(ThreadModel.thread_id == thread_id)
+            res = await session.execute(stmt)
+            existing_thread = res.scalar_one_or_none()
+        else:
+            # Look for active thread with same title and user today
+            today_start = utc_now.replace(hour=0, minute=0, second=0, microsecond=0)
+            stmt = (
+                select(ThreadModel)
+                .options(selectinload(ThreadModel.turns))
+                .where(
+                    and_(
+                        ThreadModel.user == user,
+                        ThreadModel.title == clean_title,
+                        ThreadModel.created_at >= today_start
+                    )
+                )
+                .order_by(ThreadModel.last_updated.desc())
+            )
+            res = await session.execute(stmt)
+            existing_thread = res.scalar_one_or_none()
+
+    if vault_path is None:
+        vault_path = settings.VAULT_PATH
+
+    threads_dir = os.path.join(vault_path, "threads")
+    os.makedirs(threads_dir, exist_ok=True)
+    date_str = now.strftime("%Y-%m-%d")
+    slug = _slugify(clean_title)
+    local_file_path = os.path.join(threads_dir, f"{user}_{slug}_{date_str}.md")
+
+    if existing_thread:
+        # Append turn to existing DB thread
+        target_thread_id = existing_thread.thread_id
+        new_turn_number = (existing_thread.turn_count or 0) + 1
+        existing_thread.turn_count = new_turn_number
+        existing_thread.last_updated = utc_now
+
+        if session:
+            turn_model = ThreadTurnModel(
+                thread_id=target_thread_id,
+                turn_number=new_turn_number,
+                user_prompt=user_prompt,
+                ai_response=ai_response,
+                created_at=utc_now
+            )
+            session.add(turn_model)
+            await session.commit()
+            await session.refresh(existing_thread, attribute_names=["turns"])
+
+            # Rebuild MD
+            created_tz = existing_thread.created_at.replace(tzinfo=pytz.utc).astimezone(tz)
+            turns_data = []
+            for t in existing_thread.turns:
+                t_tz = t.created_at.replace(tzinfo=pytz.utc).astimezone(tz)
+                turns_data.append({
+                    "turn_number": t.turn_number,
+                    "time": t_tz.strftime("%H:%M:%S"),
+                    "user_prompt": t.user_prompt,
+                    "ai_response": t.ai_response or "_Awaiting response..._"
+                })
+
+            file_path = _write_thread_file(
+                thread_id=target_thread_id,
+                user=user,
+                title=clean_title,
+                created_iso=created_tz.isoformat(),
+                last_updated_iso=now.isoformat(),
+                turns=turns_data,
+                vault_path=vault_path
+            )
+            existing_thread.file_path = file_path
+            await session.commit()
+        else:
+            file_path = local_file_path
+
+        return {
+            "status": "appended",
+            "thread_id": target_thread_id,
+            "turn_number": new_turn_number,
+            "file_path": file_path,
+            "title": clean_title,
+            "last_updated": now.isoformat()
+        }
+    elif os.path.exists(local_file_path):
+        # File exists on disk — append turn to local file
+        try:
+            with open(local_file_path, "r", encoding="utf-8") as f:
+                raw_content = f.read()
+            
+            m_id = re.search(r'thread_id:\s*"([^"]+)"', raw_content)
+            extracted_thread_id = m_id.group(1) if m_id else (thread_id or f"thr-{uuid.uuid4().hex[:8]}")
+            
+            m_count = re.search(r'turn_count:\s*(\d+)', raw_content)
+            curr_count = int(m_count.group(1)) if m_count else 1
+            new_turn_number = curr_count + 1
+            
+            new_turn_md = (
+                f"\n---\n\n"
+                f"## Turn {new_turn_number} — {time_str}\n\n"
+                f"**User:**\n{user_prompt}\n\n"
+                f"**AI Response:**\n{ai_response}\n"
+            )
+            raw_content = re.sub(r'turn_count:\s*\d+', f'turn_count: {new_turn_number}', raw_content)
+            raw_content = re.sub(r'last_updated:\s*"[^"]*"', f'last_updated: "{now.isoformat()}"', raw_content)
+            raw_content += new_turn_md
+            
+            with open(local_file_path, "w", encoding="utf-8") as f:
+                f.write(raw_content)
+
+            return {
+                "status": "appended",
+                "thread_id": extracted_thread_id,
+                "turn_number": new_turn_number,
+                "file_path": local_file_path,
+                "title": clean_title,
+                "last_updated": now.isoformat()
+            }
+        except Exception:
+            pass
+
+    # Create new thread
+    target_thread_id = thread_id or f"thr-{uuid.uuid4().hex[:8]}"
+    turns_data = [{
+        "turn_number": 1,
+        "time": time_str,
+        "user_prompt": user_prompt,
+        "ai_response": ai_response
+    }]
+
+    file_path = _write_thread_file(
+        thread_id=target_thread_id,
+        user=user,
+        title=clean_title,
+        created_iso=now.isoformat(),
+        last_updated_iso=now.isoformat(),
+        turns=turns_data,
+        vault_path=vault_path
+    )
+
+    if session:
+        new_thr = ThreadModel(
+            thread_id=target_thread_id,
+            user=user,
+            title=clean_title,
+            file_path=file_path,
+            turn_count=1,
+            timezone=tz_name,
+            created_at=utc_now,
+            last_updated=utc_now
+        )
+        session.add(new_thr)
+        turn_model = ThreadTurnModel(
+            thread_id=target_thread_id,
+            turn_number=1,
+            user_prompt=user_prompt,
+            ai_response=ai_response,
+            created_at=utc_now
+        )
+        session.add(turn_model)
+        await session.commit()
+
+    return {
+        "status": "created",
+        "thread_id": target_thread_id,
+        "turn_number": 1,
+        "file_path": file_path,
+        "title": clean_title,
+        "created_at": now.isoformat()
+    }
 
 
 async def create_thread(
@@ -102,66 +324,16 @@ async def create_thread(
     vault_path: Optional[str] = None,
     tz_name: str = "Asia/Kolkata"
 ) -> Dict[str, Any]:
-    """
-    Create a new thread and its first turn (prompt only, response pending).
-    Returns thread metadata including thread_id.
-    """
-    tz = pytz.timezone(tz_name)
-    now = datetime.datetime.now(tz)
-    thread_id = f"thr-{uuid.uuid4().hex[:8]}"
-
-    utc_now = now.astimezone(pytz.utc).replace(tzinfo=None)
-
-    # Build the first turn data for the MD file
-    turns_data = [{
-        "turn_number": 1,
-        "time": now.strftime("%H:%M:%S"),
-        "user_prompt": user_prompt,
-        "ai_response": "_Awaiting response..._"
-    }]
-
-    file_path = _write_thread_file(
-        thread_id=thread_id,
+    """Create a new thread with pending turn 1."""
+    return await save_thread_turn(
         user=user,
         title=title,
-        created_iso=now.isoformat(),
-        last_updated_iso=now.isoformat(),
-        turns=turns_data,
-        vault_path=vault_path
-    )
-
-    # DB: Create thread record
-    db_thread = ThreadModel(
-        thread_id=thread_id,
-        user=user,
-        title=title,
-        file_path=file_path,
-        turn_count=1,
-        timezone=tz_name,
-        created_at=utc_now,
-        last_updated=utc_now,
-    )
-    session.add(db_thread)
-
-    # DB: Create first turn (response is NULL until deliver_response)
-    db_turn = ThreadTurnModel(
-        thread_id=thread_id,
-        turn_number=1,
         user_prompt=user_prompt,
-        ai_response=None,
-        created_at=utc_now,
+        ai_response="_Awaiting response..._",
+        session=session,
+        vault_path=vault_path,
+        tz_name=tz_name
     )
-    session.add(db_turn)
-    await session.commit()
-
-    return {
-        "thread_id": thread_id,
-        "user": user,
-        "title": title,
-        "turn_number": 1,
-        "file_path": file_path,
-        "created_at": now.isoformat(),
-    }
 
 
 async def append_turn(
@@ -171,46 +343,36 @@ async def append_turn(
     vault_path: Optional[str] = None,
     tz_name: str = "Asia/Kolkata"
 ) -> Dict[str, Any]:
-    """
-    Append a new turn (prompt) to an existing thread.
-    Returns the updated thread metadata.
-    """
+    """Append a pending prompt to an existing thread."""
     tz = pytz.timezone(tz_name)
     now = datetime.datetime.now(tz)
     utc_now = now.astimezone(pytz.utc).replace(tzinfo=None)
 
-    # Fetch the thread with its turns
     stmt = (
         select(ThreadModel)
         .options(selectinload(ThreadModel.turns))
         .where(ThreadModel.thread_id == thread_id)
     )
-    result = await session.execute(stmt)
-    thread = result.scalar_one_or_none()
+    res = await session.execute(stmt)
+    thread = res.scalar_one_or_none()
     if not thread:
         raise ValueError(f"Thread '{thread_id}' not found.")
 
-    new_turn_number = thread.turn_count + 1
-
-    # DB: Create new turn
-    db_turn = ThreadTurnModel(
-        thread_id=thread_id,
-        turn_number=new_turn_number,
-        user_prompt=user_prompt,
-        ai_response=None,
-        created_at=utc_now,
-    )
-    session.add(db_turn)
-
-    # DB: Update thread metadata
-    thread.turn_count = new_turn_number
+    new_turn = (thread.turn_count or 0) + 1
+    thread.turn_count = new_turn
     thread.last_updated = utc_now
-    await session.commit()
 
-    # Refresh to get the new turn in the list
+    turn = ThreadTurnModel(
+        thread_id=thread_id,
+        turn_number=new_turn,
+        user_prompt=user_prompt,
+        ai_response="_Awaiting response..._",
+        created_at=utc_now
+    )
+    session.add(turn)
+    await session.commit()
     await session.refresh(thread, attribute_names=["turns"])
 
-    # Rebuild and rewrite the full MD file
     created_tz = thread.created_at.replace(tzinfo=pytz.utc).astimezone(tz)
     turns_data = []
     for t in thread.turns:
@@ -234,9 +396,9 @@ async def append_turn(
 
     return {
         "thread_id": thread_id,
-        "turn_number": new_turn_number,
+        "turn_number": new_turn,
         "file_path": file_path,
-        "last_updated": now.isoformat(),
+        "last_updated": now.isoformat()
     }
 
 
@@ -248,14 +410,11 @@ async def deliver_response(
     vault_path: Optional[str] = None,
     tz_name: str = "Asia/Kolkata"
 ) -> Dict[str, Any]:
-    """
-    Write the AI response into the specified turn and rewrite the MD file.
-    """
+    """Write the completed AI response into the specified turn."""
     tz = pytz.timezone(tz_name)
     now = datetime.datetime.now(tz)
     utc_now = now.astimezone(pytz.utc).replace(tzinfo=None)
 
-    # Update the turn's ai_response
     stmt = (
         select(ThreadTurnModel)
         .where(
@@ -263,28 +422,26 @@ async def deliver_response(
             ThreadTurnModel.turn_number == turn_number
         )
     )
-    result = await session.execute(stmt)
-    turn = result.scalar_one_or_none()
+    res = await session.execute(stmt)
+    turn = res.scalar_one_or_none()
     if not turn:
         raise ValueError(f"Turn {turn_number} in thread '{thread_id}' not found.")
 
     turn.ai_response = ai_response
     await session.flush()
 
-    # Update thread's last_updated
     thread_stmt = (
         select(ThreadModel)
         .options(selectinload(ThreadModel.turns))
         .where(ThreadModel.thread_id == thread_id)
     )
-    result = await session.execute(thread_stmt)
-    thread = result.scalar_one_or_none()
+    res_thr = await session.execute(thread_stmt)
+    thread = res_thr.scalar_one_or_none()
     if thread:
         thread.last_updated = utc_now
 
     await session.commit()
 
-    # Rebuild the full MD file
     if thread:
         created_tz = thread.created_at.replace(tzinfo=pytz.utc).astimezone(tz)
         turns_data = []
@@ -314,16 +471,8 @@ async def deliver_response(
         "turn_number": turn_number,
         "status": "response_saved",
         "file_path": file_path,
-        "last_updated": now.isoformat(),
+        "last_updated": now.isoformat()
     }
-
-
-def _format_dt_tz(dt: Optional[datetime.datetime], tz: pytz.BaseTzInfo) -> str:
-    if not dt:
-        return ""
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=pytz.utc).astimezone(tz).isoformat()
-    return dt.astimezone(tz).isoformat()
 
 
 async def list_threads(
@@ -395,4 +544,3 @@ async def get_thread_detail(
         "last_updated": _format_dt_tz(thread.last_updated, tz),
         "turns": turns,
     }
-

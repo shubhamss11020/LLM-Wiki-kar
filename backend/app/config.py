@@ -1,5 +1,5 @@
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Knowledge Base Wiki"
@@ -7,8 +7,6 @@ class Settings(BaseSettings):
         "DATABASE_URL", 
         "postgresql+asyncpg://wiki_user:wiki_password@localhost:5432/llm_wiki"
     )
-    # Fallback to local SQLite if PostgreSQL is unavailable during local development
-    SQLITE_FALLBACK_URL: str = "sqlite+aiosqlite:///./llm_wiki.db"
     
     # Path to the Obsidian Vault
     VAULT_PATH: str = os.getenv(
@@ -30,14 +28,17 @@ class Settings(BaseSettings):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         elif url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        # Strip sslmode=require if present for asyncpg compatibility
-        if "?sslmode=" in url:
-            url = url.split("?sslmode=")[0]
-        elif "&sslmode=" in url:
-            url = url.split("&sslmode=")[0]
+        
+        # Asyncpg uses query params or connect_args for SSL. Strip query params if needed
+        if "?" in url:
+            base_url = url.split("?")[0]
+            return base_url
         return url
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="allow"
+    )
 
 settings = Settings()

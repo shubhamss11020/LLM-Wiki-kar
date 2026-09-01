@@ -1,7 +1,6 @@
 """
-Model Context Protocol (MCP) Server for Karpathy LLM Wiki
-Exposes knowledge retrieval, cross-referencing, date-based history querying,
-and generation record creation tools to Claude Desktop / Claude Code.
+Fast, Resilient Multi-Tier Knowledge Wiki MCP Server for Claude Desktop
+Connects directly to the PostgreSQL Knowledge Base API.
 """
 
 import os
@@ -9,10 +8,12 @@ import sys
 import json
 import asyncio
 import httpx
+import re
 from typing import Optional, List, Dict, Any
 
-BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "https://llm-wiki-kar.onrender.com")
 WIKI_API_KEY = os.getenv("WIKI_API_KEY", "")
+THREAD_USER = os.getenv("THREAD_USER", "shubh")
 
 def _get_headers() -> dict:
     headers = {}
@@ -20,31 +21,120 @@ def _get_headers() -> dict:
         headers["X-API-Key"] = WIKI_API_KEY
     return headers
 
-async def _http_post(endpoint: str, data: dict) -> dict:
-    async with httpx.AsyncClient(base_url=BACKEND_API_URL, timeout=15.0, headers=_get_headers()) as client:
-        resp = await client.post(endpoint, json=data)
-        resp.raise_for_status()
-        return resp.json()
-
 async def _http_get(endpoint: str, params: dict = None) -> dict:
-    async with httpx.AsyncClient(base_url=BACKEND_API_URL, timeout=15.0, headers=_get_headers()) as client:
+    async with httpx.AsyncClient(base_url=BACKEND_API_URL, timeout=30.0, headers=_get_headers()) as client:
         resp = await client.get(endpoint, params=params)
         resp.raise_for_status()
         return resp.json()
 
-# --- Tool Implementations ---
+async def _http_post(endpoint: str, data: dict) -> dict:
+    async with httpx.AsyncClient(base_url=BACKEND_API_URL, timeout=30.0, headers=_get_headers()) as client:
+        resp = await client.post(endpoint, json=data)
+        resp.raise_for_status()
+        return resp.json()
+
+def _slugify(text: str, max_len: int = 50) -> str:
+    slug = re.sub(r"[^\w\s-]", "", text.lower().strip())
+    slug = re.sub(r"[\s_]+", "-", slug)
+    return slug[:max_len].rstrip("-") or "conversation"
+
+def _git_commit_file(file_path: str, message: str) -> None:
+    """Auto-stages and commits the thread file into the Git repository in real time."""
+    try:
+        import subprocess
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        if os.path.exists(os.path.join(repo_root, ".git")):
+            rel_path = os.path.relpath(file_path, repo_root)
+            subprocess.run(["git", "add", rel_path], cwd=repo_root, capture_output=True, text=True, check=False)
+            subprocess.run(["git", "commit", "-m", message], cwd=repo_root, capture_output=True, text=True, check=False)
+    except Exception:
+        pass
+
+def _save_local_thread_md(local_vault: str, user: str, title: str, prompt: str, response: str) -> str:
+    """Creates or appends to vault/threads/<user>_<thread_name>_<date>.md and auto-commits to Git."""
+    try:
+        import datetime, pytz
+        tz = pytz.timezone("Asia/Kolkata")
+        now = datetime.datetime.now(tz)
+        date_str = now.strftime("%Y-%m-%d")
+        time_str = now.strftime("%H:%M:%S")
+        slug = _slugify(title)
+        
+        threads_dir = os.path.join(local_vault, "threads")
+        os.makedirs(threads_dir, exist_ok=True)
+        file_name = f"{user}_{slug}_{date_str}.md"
+        file_path = os.path.join(threads_dir, file_name)
+
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # Find turn count
+            m = re.search(r'turn_count:\s*(\d+)', content)
+            current_turns = int(m.group(1)) if m else 1
+            new_turns = current_turns + 1
+
+            content = re.sub(r'turn_count:\s*\d+', f'turn_count: {new_turns}', content)
+            content = re.sub(r'last_updated:\s*"[^"]*"', f'last_updated: "{now.isoformat()}"', content)
+
+            new_turn_md = (
+                f"\n---\n\n"
+                f"## Turn {new_turns} — {time_str}\n\n"
+                f"**User:**\n{prompt}\n\n"
+                f"**AI Response:**\n{response}\n"
+            )
+            content += new_turn_md
+
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            _git_commit_file(file_path, f"thread: update {slug} (turn {new_turns})")
+        else:
+            thread_id = f"thr-{uuid.uuid4().hex[:8]}" if "uuid" in globals() else "thr-local"
+            content = f"""---
+thread_id: "{thread_id}"
+user: "{user}"
+title: "{title}"
+created: "{now.isoformat()}"
+last_updated: "{now.isoformat()}"
+turn_count: 1
+---
+
+# {user} — {title} — {date_str}
+
+---
+
+## Turn 1 — {time_str}
+
+**User:**
+{prompt}
+
+**AI Response:**
+{response}
+"""
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            _git_commit_file(file_path, f"thread: create {slug} (turn 1)")
+
+        return file_path
+    except Exception:
+        return ""
+
+# --- MCP Tool Handlers ---
 
 async def tool_search_wiki(query: str, category: Optional[str] = None, limit: int = 5) -> str:
-    """
-    Search the 200+ atomic notes in the Karpathy LLM Wiki by semantic concept or keyword.
-    """
     try:
-        data = await _http_post("/api/search", {"query": query, "category": category, "limit": limit})
+        data = await _http_post("/api/search", {
+            "query": query,
+            "category": category,
+            "limit": limit
+        })
         results = data.get("results", [])
         if not results:
             return f"No matching notes found for query: '{query}'."
         
-        formatted = [f"Found {len(results)} relevant note(s):\n"]
+        formatted = [f"Found {len(results)} relevant note(s) in knowledge base:\n"]
         for r in results:
             tags_str = ", ".join(r.get("tags") or [])
             formatted.append(
@@ -53,22 +143,17 @@ async def tool_search_wiki(query: str, category: Optional[str] = None, limit: in
                 f"- **Heading:** {r['heading']}\n"
                 f"- **Snippet:** {r['snippet']}\n"
             )
-        formatted.append("")
         return "\n".join(formatted)
     except Exception as e:
-        return f"Error searching wiki: {str(e)}"
+        return f"Error querying wiki: {str(e)}"
 
 async def tool_get_file(file_name: str) -> str:
-    """
-    Retrieve the full Markdown content, structured sections, and outgoing wikilinks for a note.
-    """
     try:
         clean_name = file_name.strip("[]'\"")
         data = await _http_get(f"/api/notes/{clean_name}")
         chunks = data.get("chunks", [])
         body = "\n\n".join([f"### {c['heading']}\n{c['content']}" for c in chunks])
         links = ", ".join(data.get("outgoing_wikilinks", [])) or "None"
-        
         return (
             f"# {data.get('title')} ({data.get('file_name')})\n"
             f"- **Category:** {data.get('category')}\n"
@@ -84,18 +169,12 @@ async def tool_get_records_by_date(
     end_date: Optional[str] = None,
     topic: Optional[str] = None
 ) -> str:
-    """
-    Retrieve historical generated Markdown interaction records within a date range (e.g. 'show me last month's records').
-    """
     try:
         params = {}
-        if start_date:
-            params["start_date"] = start_date
-        if end_date:
-            params["end_date"] = end_date
-        if topic:
-            params["topic"] = topic
-
+        if start_date: params["start_date"] = start_date
+        if end_date: params["end_date"] = end_date
+        if topic: params["topic"] = topic
+        
         data = await _http_get("/api/records", params=params)
         records = data.get("records", [])
         if not records:
@@ -114,9 +193,6 @@ async def tool_get_records_by_date(
         return f"Error querying records: {str(e)}"
 
 async def tool_refresh_vault() -> str:
-    """
-    Triggers an incremental scan and re-indexing of the Obsidian Vault in PostgreSQL.
-    """
     try:
         res = await _http_post("/api/ingest", {})
         return (
@@ -136,18 +212,25 @@ async def tool_save_generation(
     source_files: Optional[List[str]] = None
 ) -> str:
     """
-    Persist an interaction into the Obsidian Vault (as timestamped .md) and commit metadata to the database.
+    Persist an interaction into vault/threads/ (as <user>_<title>_<date>.md),
+    vault/generated/ (timestamped note), and PostgreSQL database.
     """
-    # 1. Local disk save guarantees it is always saved even if backend is deploying/down
-    rec_id = f"rec-{uuid.uuid4().hex[:8]}" if "uuid" in globals() else "rec-local"
+    import datetime, pytz, json, uuid
+    rec_id = f"rec-{uuid.uuid4().hex[:8]}"
     local_saved_file = ""
+    local_thread_file = ""
+    thread_title = (topics[0].replace("-", " ").title()) if (topics and topics[0] != "skincare") else prompt[:60].strip()
+
     try:
-        import datetime, pytz, json, uuid
-        rec_id = f"rec-{uuid.uuid4().hex[:8]}"
         local_vault = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "vault"))
         if os.path.exists(local_vault):
             tz = pytz.timezone("Asia/Kolkata")
             now = datetime.datetime.now(tz)
+
+            # 1. Save or append to vault/threads/
+            local_thread_file = _save_local_thread_md(local_vault, THREAD_USER, thread_title, prompt, response)
+
+            # 2. Save individual note in vault/generated/
             date_dir = os.path.join(local_vault, "generated", str(now.year), f"{now.month:02d}", f"{now.day:02d}")
             os.makedirs(date_dir, exist_ok=True)
             topic_slug = ((topics[0] if topics else "skincare")).replace(" ", "-").lower()
@@ -179,7 +262,7 @@ sources: {json.dumps(source_files or [])}
     except Exception:
         pass
 
-    # 2. Sync to Backend Database & Remote Vault
+    # 3. Sync to PostgreSQL Database via Backend
     try:
         payload = {
             "prompt": prompt,
@@ -189,15 +272,14 @@ sources: {json.dumps(source_files or [])}
         }
         res = await _http_post("/api/records", payload)
         return (
-            f"Successfully recorded generation!\n"
+            f"Successfully recorded generation and thread turn!\n"
             f"- **Record ID:** `{res.get('record_id', rec_id)}`\n"
-            f"- **Saved File:** `{res.get('file_name', local_saved_file)}`\n"
-            f"- **Vault Path:** `{res.get('file_path', 'vault/generated/')}`\n"
-            f"- **Timestamp:** {res.get('created_at', 'Saved')}"
+            f"- **Vault Thread:** `{local_thread_file or 'vault/threads/'}`\n"
+            f"- **PostgreSQL Sync:** Saved & Indexed"
         )
     except Exception as e:
         if local_saved_file:
-            return f"Saved locally to vault/generated/{local_saved_file} (Backend sync queued: {str(e)})"
+            return f"Saved locally to vault/threads/ and vault/generated/ (Backend sync queued: {str(e)})"
         return f"Error saving generation record: {str(e)}"
 
 
@@ -249,7 +331,7 @@ TOOLS_LIST = [
     },
     {
         "name": "save_generation",
-        "description": "MANDATORY: You MUST ALWAYS call this tool immediately after answering the user to log the full interaction. Pass your EXACT, FULL, VERBATIM response text (100% ditto, word-for-word identical to what is shown to the user, including all markdown formatting, paragraphs, lists, and product details — NEVER summarize or shorten) into 'response', along with the exact user prompt into 'prompt', relevant topics, and referenced source files.",
+        "description": "MANDATORY: You MUST ALWAYS call this tool immediately after answering the user to log the full interaction into vault/threads/ and the database. Pass your EXACT, FULL, VERBATIM response text (100% ditto, word-for-word identical to what is shown to the user, including all markdown formatting, paragraphs, lists, and product details — NEVER summarize or shorten) into 'response', along with the exact user prompt into 'prompt', relevant topics, and referenced source files.",
         "inputSchema": {
             "type": "object",
             "properties": {

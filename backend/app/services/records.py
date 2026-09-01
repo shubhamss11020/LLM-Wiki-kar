@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.database.models import GenerationRecordModel
+from backend.app.services.threads import save_thread_turn
 from backend.app.config import settings
 
 async def save_generation_record(
@@ -20,7 +21,8 @@ async def save_generation_record(
     """
     Saves an LLM interaction record simultaneously to:
     1. A formatted timestamped Markdown file in vault/generated/YYYY/MM/DD/
-    2. A row in the PostgreSQL/SQLite 'generations' table
+    2. A conversation thread Markdown file in vault/threads/<user>_<title>_<date>.md
+    3. The PostgreSQL 'generations', 'threads', and 'thread_turns' tables
     """
     if topics is None:
         topics = ["skincare-wiki"]
@@ -87,11 +89,10 @@ source_files:
     try:
         with open(full_file_path, "w", encoding="utf-8") as f:
             f.write(md_content)
-    except Exception as e:
-        # Disk write may fail in certain environments; proceed with DB
+    except Exception:
         pass
 
-    # Commit to DB if session provided
+    # Dual-save into PostgreSQL generations table
     if session:
         try:
             utc_created = now.astimezone(pytz.utc).replace(tzinfo=None)
@@ -106,59 +107,24 @@ source_files:
                 created_at=utc_created
             )
             session.add(db_record)
-            
-            # Also dual-sync into threads & thread_turns for the live UI dashboard
-            try:
-                from backend.app.database.models import ThreadModel, ThreadTurnModel
-                thread_title = (topics[0].replace("-", " ").title()) if topics else prompt[:50].strip()
-                # Check for existing thread with same title today
-                today_start = utc_created.replace(hour=0, minute=0, second=0, microsecond=0)
-                stmt = select(ThreadModel).where(
-                    ThreadModel.title == thread_title,
-                    ThreadModel.created_at >= today_start
-                )
-                res = await session.execute(stmt)
-                existing_thread = res.scalar_one_or_none()
-
-                if existing_thread:
-                    existing_thread.turn_count = (existing_thread.turn_count or 0) + 1
-                    existing_thread.last_updated = utc_created
-                    turn = ThreadTurnModel(
-                        thread_id=existing_thread.thread_id,
-                        turn_number=existing_thread.turn_count,
-                        user_prompt=prompt,
-                        ai_response=response,
-                        created_at=utc_created
-                    )
-                    session.add(turn)
-                else:
-                    thr_id = f"thr-{uuid.uuid4().hex[:8]}"
-                    new_thr = ThreadModel(
-                        thread_id=thr_id,
-                        user="shubh",
-                        title=thread_title,
-                        file_path=full_file_path,
-                        turn_count=1,
-                        timezone=tz_name,
-                        created_at=utc_created,
-                        last_updated=utc_created
-                    )
-                    session.add(new_thr)
-                    turn = ThreadTurnModel(
-                        thread_id=thr_id,
-                        turn_number=1,
-                        user_prompt=prompt,
-                        ai_response=response,
-                        created_at=utc_created
-                    )
-                    session.add(turn)
-            except Exception:
-                pass
-
             await session.commit()
-        except Exception as e:
-            # Table might be missing or DB reconnecting
+        except Exception:
             pass
+
+    # Dual-save & append into conversation threads in vault/threads/ & PostgreSQL
+    thread_title = (topics[0].replace("-", " ").title()) if (topics and topics[0] != "skincare-wiki") else prompt[:60].strip()
+    try:
+        await save_thread_turn(
+            user="shubh",
+            title=thread_title,
+            user_prompt=prompt,
+            ai_response=response,
+            session=session,
+            vault_path=vault_path,
+            tz_name=tz_name
+        )
+    except Exception:
+        pass
 
     return {
         "status": "success",
@@ -177,8 +143,7 @@ async def query_records_by_date(
     limit: int = 20
 ) -> List[Dict[str, Any]]:
     """
-    Queries generation records by date range and topic filter.
-    Handles dates in ISO format 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM:SS'.
+    Queries generation records by date range and topic filter from PostgreSQL.
     """
     if not session:
         return []

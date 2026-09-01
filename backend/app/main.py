@@ -3,7 +3,6 @@ import logging
 from contextlib import asynccontextmanager, AsyncExitStack
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Query, Header, Request
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from mcp.server.mcpserver import MCPServer
@@ -15,7 +14,7 @@ from backend.app.ingestion.indexer import run_incremental_ingestion
 from backend.app.services.search import search_knowledge_base, get_file_details, get_related_notes
 from backend.app.services.records import save_generation_record, query_records_by_date
 from backend.app.services.threads import (
-    create_thread, append_turn, deliver_response,
+    save_thread_turn, create_thread, append_turn, deliver_response,
     list_threads, get_thread_detail
 )
 
@@ -254,6 +253,14 @@ class ThreadDeliverRequest(BaseModel):
     ai_response: str
     timezone: Optional[str] = "Asia/Kolkata"
 
+class ThreadInteractionRequest(BaseModel):
+    user: Optional[str] = "shubh"
+    title: Optional[str] = None
+    user_prompt: str
+    ai_response: str
+    thread_id: Optional[str] = None
+    timezone: Optional[str] = "Asia/Kolkata"
+
 def resolve_allowed_partitions(x_api_key: Optional[str] = Header(None)) -> Optional[List[int]]:
     """
     Resolves client API Key to strictly allowed hierarchical tiers:
@@ -469,6 +476,27 @@ async def deliver_thread_response(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+@app.post("/api/threads/save-interaction")
+async def save_thread_interaction_endpoint(
+    req: ThreadInteractionRequest,
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Direct endpoint to save or append an interaction turn into vault/threads/<user>_<title>_<date>.md
+    and index directly into PostgreSQL threads and thread_turns tables.
+    """
+    result = await save_thread_turn(
+        user=req.user or "shubh",
+        title=req.title or req.user_prompt[:60].strip(),
+        user_prompt=req.user_prompt,
+        ai_response=req.ai_response,
+        thread_id=req.thread_id,
+        session=session,
+        vault_path=settings.VAULT_PATH,
+        tz_name=req.timezone or "Asia/Kolkata"
+    )
+    return result
+
 @app.get("/api/threads")
 async def get_threads(
     user: Optional[str] = Query(None),
@@ -502,17 +530,6 @@ async def get_thread_by_id(
         raise
     except Exception:
         raise HTTPException(status_code=503, detail="Thread tables not initialized yet. POST /api/init-db to create them.")
-
-@app.get("/threads", response_class=HTMLResponse)
-async def threads_dashboard():
-    """
-    Serve the live thread monitoring dashboard.
-    """
-    html_path = os.path.join(os.path.dirname(__file__), "static", "threads.html")
-    if not os.path.exists(html_path):
-        raise HTTPException(status_code=404, detail="Dashboard not found.")
-    with open(html_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
 
 # --- Mount Remote MCP Endpoints ---
 sec_settings = TransportSecuritySettings(allowed_hosts=["*"], enable_dns_rebinding_protection=False)

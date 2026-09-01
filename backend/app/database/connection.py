@@ -1,16 +1,25 @@
 import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy import text
 from backend.app.config import settings
 from backend.app.database.models import Base
 
 logger = logging.getLogger(__name__)
 
-# Determine database engine
-try:
-    engine = create_async_engine(settings.async_database_url, echo=False, future=True)
-except Exception as e:
-    logger.warning(f"Could not initialize PostgreSQL engine ({e}), falling back to SQLite.")
-    engine = create_async_engine(settings.SQLITE_FALLBACK_URL, echo=False, future=True)
+# Determine if SSL is required (Neon DB, AWS, Render, or explicit sslmode)
+connect_args = {}
+raw_url = settings.DATABASE_URL.lower()
+if any(k in raw_url for k in ["neon.tech", "sslmode=require", "render.com", "aws", "pooler"]):
+    connect_args["ssl"] = "require"
+
+engine = create_async_engine(
+    settings.async_database_url,
+    connect_args=connect_args,
+    echo=False,
+    future=True,
+    pool_pre_ping=True,
+    pool_recycle=300
+)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
@@ -20,10 +29,11 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
-from sqlalchemy import text
-
 async def init_db():
-    """Initializes the database schema with automatic SQLite fallback and high-speed GIN indexes."""
+    """
+    Initializes PostgreSQL database schema with high-speed GIN trigram indexes
+    and thread monitoring tables.
+    """
     global engine, AsyncSessionLocal
     try:
         # Step 1: Base table creation
@@ -45,10 +55,10 @@ async def init_db():
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chunks_heading_trgm ON chunks USING gin (heading gin_trgm_ops);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_files_partition_id ON files (partition, id);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_files_title_trgm ON files USING gin (title gin_trgm_ops);"))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.info(f"PostgreSQL pg_trgm extension note: {e}")
 
-        # Step 4: Ensure thread tables exist
+        # Step 4: Ensure thread tables and indexes exist
         try:
             async with engine.begin() as conn:
                 await conn.execute(text("""
@@ -79,9 +89,9 @@ async def init_db():
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_threads_last_updated ON threads (last_updated);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_thread_turns_thread_id ON thread_turns (thread_id);"))
         except Exception as e:
-            logger.warning(f"Thread table DDL warning: {e}")
+            logger.warning(f"Thread table DDL: {e}")
 
-        # Step 5: Auto-migrate existing generations
+        # Step 5: Auto-migrate any unmigrated generations into threads
         try:
             async with engine.begin() as conn:
                 await conn.execute(text("""
@@ -118,20 +128,12 @@ async def init_db():
                       );
                 """))
         except Exception as e:
-            logger.warning(f"Generation migration warning: {e}")
+            logger.info(f"Generation migration note: {e}")
 
-        logger.info("Database tables and high-speed GIN indexes initialized successfully.")
+        logger.info("PostgreSQL database tables and GIN indexes initialized successfully.")
     except Exception as e:
-        logger.warning(f"Could not connect to database ({e}), attempting fallback to SQLite.")
-        engine = create_async_engine(settings.SQLITE_FALLBACK_URL, echo=False, future=True)
-        AsyncSessionLocal.configure(bind=engine)
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            try:
-                await conn.execute(text("ALTER TABLE files ADD COLUMN partition INTEGER DEFAULT 1;"))
-            except Exception:
-                pass
-        logger.info("SQLite fallback tables initialized successfully.")
+        logger.error(f"Failed to initialize PostgreSQL database schema: {e}", exc_info=True)
+        raise
 
 async def get_db():
     """FastAPI Dependency for database sessions."""
@@ -140,4 +142,3 @@ async def get_db():
             yield session
         finally:
             await session.close()
-
