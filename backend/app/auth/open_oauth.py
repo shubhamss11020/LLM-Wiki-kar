@@ -38,6 +38,9 @@ class OpenOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, Acce
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
         logger.info(f"OAuth: Registering client '{client_info.client_id}' ({client_info.client_name})")
+        # Ensure public PKCE clients (like Claude.ai) do not require client_secret
+        client_info.token_endpoint_auth_method = "none"
+        client_info.client_secret = None
         _clients[client_info.client_id] = client_info
 
     async def authorize(
