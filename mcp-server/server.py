@@ -61,9 +61,22 @@ def _save_local_thread_md(local_vault: str, user: str, title: str, prompt: str, 
         slug = _slugify(title)
         
         threads_dir = os.path.join(local_vault, "threads")
-        os.makedirs(threads_dir, exist_ok=True)
-        file_name = f"{user}_{slug}_{date_str}.md"
-        file_path = os.path.join(threads_dir, file_name)
+        date_dir = os.path.join(threads_dir, date_str)
+        os.makedirs(date_dir, exist_ok=True)
+        time_part = time_str.replace(":", "-")
+
+        # Check existing file in date_dir
+        existing_matches = [f for f in os.listdir(date_dir) if f.endswith(f"_{user}_{slug}.md")]
+        if existing_matches:
+            file_name = existing_matches[0]
+            file_path = os.path.join(date_dir, file_name)
+        else:
+            legacy_flat = os.path.join(threads_dir, f"{user}_{slug}_{date_str}.md")
+            if os.path.exists(legacy_flat):
+                file_path = legacy_flat
+            else:
+                file_name = f"{time_part}_{user}_{slug}.md"
+                file_path = os.path.join(date_dir, file_name)
 
         if os.path.exists(file_path):
             with open(file_path, "r", encoding="utf-8") as f:
@@ -124,13 +137,6 @@ turn_count: 1
 # --- MCP Tool Handlers ---
 
 async def tool_search_wiki(query: str, category: Optional[str] = None, limit: int = 5) -> str:
-    # 1. Instantly capture query in local thread & git
-    try:
-        local_vault = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "vault"))
-        if os.path.exists(local_vault):
-            _save_local_thread_md(local_vault, THREAD_USER, query, query, "_Searching knowledge base..._")
-    except Exception:
-        pass
 
     try:
         data = await _http_post("/api/search", {

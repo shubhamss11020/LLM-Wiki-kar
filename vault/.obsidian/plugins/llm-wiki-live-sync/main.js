@@ -105,13 +105,34 @@ class LLMWikiLiveSyncPlugin extends Plugin {
                 const title = detail.title || "Skincare Inquiry";
                 const slug = slugify(title);
                 const createdDate = (detail.created_at || "").substring(0, 10) || new Date().toISOString().substring(0, 10);
-                const fileName = `${user}_${slug}_${createdDate}.md`;
-                const filePath = `${threadsDir}/${fileName}`;
+                
+                let timeStr = "12-00-00";
+                if (detail.created_at && detail.created_at.length >= 19) {
+                    timeStr = detail.created_at.substring(11, 19).replace(/:/g, "-");
+                } else if (detail.turns && detail.turns.length > 0 && detail.turns[0].created_at) {
+                    timeStr = detail.turns[0].created_at.substring(11, 19).replace(/:/g, "-");
+                }
+
+                const dateFolder = `${threadsDir}/${createdDate}`;
+                if (!(await adapter.exists(dateFolder))) {
+                    await adapter.mkdir(dateFolder);
+                }
+
+                const fileName = `${timeStr}_${user}_${slug}.md`;
+                const filePath = `${dateFolder}/${fileName}`;
+
+                // Clean up old flat file in root threads/ if present
+                const legacyFlatPath = `${threadsDir}/${user}_${slug}_${createdDate}.md`;
+                if (await adapter.exists(legacyFlatPath)) {
+                    try {
+                        await adapter.remove(legacyFlatPath);
+                    } catch (e) {}
+                }
 
                 const turns = detail.turns || [];
                 const turnsMd = turns.map(t => {
-                    const timeStr = t.created_at ? t.created_at.substring(11, 19) : "";
-                    return `## Turn ${t.turn_number || 1} — ${timeStr}\n\n**User:**\n${t.user_prompt || ""}\n\n**AI Response:**\n${t.ai_response || ""}\n`;
+                    const tTime = t.created_at ? t.created_at.substring(11, 19) : "";
+                    return `## Turn ${t.turn_number || 1} — ${tTime}\n\n**User:**\n${t.user_prompt || ""}\n\n**AI Response:**\n${t.ai_response || ""}\n`;
                 }).join("\n---\n\n");
 
                 const mdContent = `---

@@ -73,22 +73,127 @@ def _git_commit_file(file_path: str, message: str) -> None:
         pass
 
 
-def _write_thread_file(thread_id: str, user: str, title: str,
-                       created_iso: str, last_updated_iso: str,
-                       turns: List[Dict[str, Any]],
-                       vault_path: Optional[str] = None) -> str:
-    """Write or overwrite the full thread MD file in vault/threads/ and auto-commit to Git."""
+def _update_timeline_md(vault_path: Optional[str] = None) -> None:
+    """Regenerate vault/threads/Timeline.md in ascending chronological order."""
     try:
         if vault_path is None:
             vault_path = settings.VAULT_PATH
 
-        threads_dir = os.path.join(vault_path, "threads")
-        os.makedirs(threads_dir, exist_ok=True)
+        threads_root = os.path.join(vault_path, "threads")
+        if not os.path.exists(threads_root):
+            return
+
+        entries = []
+        for root, dirs, files in os.walk(threads_root):
+            dir_name = os.path.basename(root)
+            if not re.match(r'^\d{4}-\d{2}-\d{2}$', dir_name):
+                continue
+            for file in files:
+                if file.endswith(".md") and not file.startswith("."):
+                    fp = os.path.join(root, file)
+                    try:
+                        with open(fp, "r", encoding="utf-8", errors="ignore") as f:
+                            content = f.read()
+
+                        m_title = re.search(r'title:\s*"([^"]+)"', content)
+                        title = m_title.group(1) if m_title else file[:-3]
+
+                        m_turns = re.search(r'turn_count:\s*(\d+)', content)
+                        turns = int(m_turns.group(1)) if m_turns else 1
+
+                        m_prompt = re.search(r'\*\*User:\*\*\s*\n(.*?)(?=\n\n\*\*AI Response:\*\*|\Z)', content, re.DOTALL)
+                        prompt = m_prompt.group(1).strip().replace("\n", " ") if m_prompt else title
+                        if len(prompt) > 80:
+                            prompt = prompt[:77] + "..."
+
+                        m_time = re.match(r'^(\d{2}-\d{2}-\d{2})_', file)
+                        time_display = m_time.group(1).replace("-", ":") if m_time else "12:00:00"
+
+                        entries.append({
+                            "date": dir_name,
+                            "time": time_display,
+                            "dt_key": f"{dir_name} {time_display}",
+                            "title": title,
+                            "turns": turns,
+                            "prompt": prompt,
+                            "rel_link": f"{dir_name}/{file[:-3]}"
+                        })
+                    except Exception:
+                        pass
+
+        entries.sort(key=lambda x: x["dt_key"])
+
+        lines = [
+            "---",
+            "id: threads-timeline",
+            "title: Chronological Conversation Threads Timeline",
+            "category: Index",
+            "tags:",
+            "  - timeline",
+            "  - threads",
+            "  - index",
+            f'last_updated: "{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}"',
+            f"total_threads: {len(entries)}",
+            "---",
+            "",
+            "# 🕒 Chronological Conversation Threads Timeline",
+            "",
+            "> Master catalogue of all conversational interactions with AskCruz & LLM Wiki, sorted in **ascending chronological order** (oldest to newest).",
+            "",
+            f"**Total Segregated Threads:** `{len(entries)}` across `{len(set(e['date'] for e in entries))}` dates.",
+            "",
+            "---",
+            ""
+        ]
+
+        current_date = None
+        for entry in entries:
+            if entry["date"] != current_date:
+                current_date = entry["date"]
+                lines.append(f"\n## 📅 {current_date}\n")
+                lines.append("| Time | Thread Title | Turns | First Prompt Preview |")
+                lines.append("| :--- | :--- | :---: | :--- |")
+
+            title_escaped = entry['title'].replace("|", "\\|")
+            prompt_escaped = entry['prompt'].replace("|", "\\|")
+            lines.append(f"| `{entry['time']}` | [[{entry['rel_link']}\\|{title_escaped}]] | **{entry['turns']}** | {prompt_escaped} |")
+
+        timeline_fp = os.path.join(threads_root, "Timeline.md")
+        with open(timeline_fp, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+    except Exception:
+        pass
+
+
+def _write_thread_file(thread_id: str, user: str, title: str,
+                       created_iso: str, last_updated_iso: str,
+                       turns: List[Dict[str, Any]],
+                       vault_path: Optional[str] = None) -> str:
+    """Write or overwrite the full thread MD file in vault/threads/YYYY-MM-DD/ and auto-commit to Git."""
+    try:
+        if vault_path is None:
+            vault_path = settings.VAULT_PATH
 
         date_str = created_iso[:10]  # YYYY-MM-DD
+        date_dir = os.path.join(vault_path, "threads", date_str)
+        os.makedirs(date_dir, exist_ok=True)
+
+        time_part = "12-00-00"
+        if len(created_iso) >= 19:
+            time_part = created_iso[11:19].replace(":", "-")
+        elif turns and turns[0].get("time"):
+            time_part = turns[0]["time"].replace(":", "-")
+
         slug = _slugify(title)
-        file_name = f"{user}_{slug}_{date_str}.md"
-        file_path = os.path.join(threads_dir, file_name)
+        
+        # Check if existing file matching this slug exists in date_dir
+        existing_matches = [f for f in os.listdir(date_dir) if f.endswith(f"_{user}_{slug}.md")]
+        if existing_matches:
+            file_name = existing_matches[0]
+        else:
+            file_name = f"{time_part}_{user}_{slug}.md"
+
+        file_path = os.path.join(date_dir, file_name)
 
         md_content = _build_thread_md(
             thread_id=thread_id,
@@ -102,7 +207,9 @@ def _write_thread_file(thread_id: str, user: str, title: str,
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(md_content)
 
-        _git_commit_file(file_path, f"thread: save {user}_{slug} ({len(turns)} turns)")
+        _git_commit_file(file_path, f"thread: save {date_str}/{user}_{slug} ({len(turns)} turns)")
+
+        _update_timeline_md(vault_path)
 
         return file_path
     except Exception:
@@ -166,14 +273,21 @@ async def save_thread_turn(
             res = await session.execute(stmt)
             existing_thread = res.scalar_one_or_none()
 
-    if vault_path is None:
-        vault_path = settings.VAULT_PATH
-
     threads_dir = os.path.join(vault_path, "threads")
     os.makedirs(threads_dir, exist_ok=True)
     date_str = now.strftime("%Y-%m-%d")
+    date_dir = os.path.join(threads_dir, date_str)
+    os.makedirs(date_dir, exist_ok=True)
     slug = _slugify(clean_title)
-    local_file_path = os.path.join(threads_dir, f"{user}_{slug}_{date_str}.md")
+
+    local_file_path = None
+    existing_files = [f for f in os.listdir(date_dir) if f.endswith(f"_{user}_{slug}.md")]
+    if existing_files:
+        local_file_path = os.path.join(date_dir, existing_files[0])
+    else:
+        legacy_flat = os.path.join(threads_dir, f"{user}_{slug}_{date_str}.md")
+        if os.path.exists(legacy_flat):
+            local_file_path = legacy_flat
 
     if existing_thread:
         # Append turn to existing DB thread
@@ -228,7 +342,7 @@ async def save_thread_turn(
             "title": clean_title,
             "last_updated": now.isoformat()
         }
-    elif os.path.exists(local_file_path):
+    elif local_file_path and os.path.exists(local_file_path):
         # File exists on disk — append turn to local file
         try:
             with open(local_file_path, "r", encoding="utf-8") as f:

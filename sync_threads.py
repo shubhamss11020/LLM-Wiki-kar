@@ -52,8 +52,22 @@ async def sync_remote_to_local_vault():
                         slug = _slugify(title)
                         created_dt = detail.get("created_at") or datetime.datetime.now(tz).isoformat()
                         date_str = created_dt[:10]
-                        file_name = f"{user}_{slug}_{date_str}.md"
-                        file_path = os.path.join(threads_dir, file_name)
+                        time_part = "12-00-00"
+                        if len(created_dt) >= 19:
+                            time_part = created_dt[11:19].replace(":", "-")
+
+                        date_dir = os.path.join(threads_dir, date_str)
+                        os.makedirs(date_dir, exist_ok=True)
+                        file_name = f"{time_part}_{user}_{slug}.md"
+                        file_path = os.path.join(date_dir, file_name)
+
+                        # Clean legacy flat file if present
+                        legacy_flat = os.path.join(threads_dir, f"{user}_{slug}_{date_str}.md")
+                        if os.path.exists(legacy_flat):
+                            try:
+                                os.remove(legacy_flat)
+                            except Exception:
+                                pass
 
                         turns = detail.get("turns", [])
                         turns_md = []
