@@ -44,6 +44,8 @@ def create_partition_mcp_server(
             f"with the user prompt and your EXACT, FULL, VERBATIM response text (100% ditto, word-for-word identical "
             f"to what the user sees, including all markdown formatting, tables, bullet points, and details — NEVER summarize or shorten)."
         ),
+        auth_server_provider=oauth_provider,
+        auth=auth_settings,
     )
     
     allowed = allowed_partitions
@@ -657,44 +659,28 @@ def forward_to_mcp(subapp):
     return handler
 
 # MCP 1 & Tier 1
-mcp1_app = mcp_1.streamable_http_app(
-    transport_security=sec_settings,
-    auth_server_provider=oauth_provider,
-    auth_settings=auth_settings,
-)
+mcp1_app = mcp_1.streamable_http_app(transport_security=sec_settings)
 app.add_api_route("/mcp1", forward_to_mcp(mcp1_app), methods=["GET", "POST", "DELETE"])
 app.add_api_route("/tier1", forward_to_mcp(mcp1_app), methods=["GET", "POST", "DELETE"])
 app.mount("/mcp1", mcp1_app)
 app.mount("/tier1", mcp1_app)
 
 # MCP 2 & Tier 2
-mcp2_app = mcp_2.streamable_http_app(
-    transport_security=sec_settings,
-    auth_server_provider=oauth_provider,
-    auth_settings=auth_settings,
-)
+mcp2_app = mcp_2.streamable_http_app(transport_security=sec_settings)
 app.add_api_route("/mcp2", forward_to_mcp(mcp2_app), methods=["GET", "POST", "DELETE"])
 app.add_api_route("/tier2", forward_to_mcp(mcp2_app), methods=["GET", "POST", "DELETE"])
 app.mount("/mcp2", mcp2_app)
 app.mount("/tier2", mcp2_app)
 
 # MCP 3 & Tier 3
-mcp3_app = mcp_3.streamable_http_app(
-    transport_security=sec_settings,
-    auth_server_provider=oauth_provider,
-    auth_settings=auth_settings,
-)
+mcp3_app = mcp_3.streamable_http_app(transport_security=sec_settings)
 app.add_api_route("/mcp3", forward_to_mcp(mcp3_app), methods=["GET", "POST", "DELETE"])
 app.add_api_route("/tier3", forward_to_mcp(mcp3_app), methods=["GET", "POST", "DELETE"])
 app.mount("/mcp3", mcp3_app)
 app.mount("/tier3", mcp3_app)
 
 # Threads-OV (Universal Transcript & Second-Brain Vault)
-threads_ov_app = mcp_threads_ov.streamable_http_app(
-    transport_security=sec_settings,
-    auth_server_provider=oauth_provider,
-    auth_settings=auth_settings,
-)
+threads_ov_app = mcp_threads_ov.streamable_http_app(transport_security=sec_settings)
 for prefix in ["/threadsov", "/threads-ov", "/threads_ov", "/threads", "/thread-vault", "/cruz-brain", "/thread-logger", "/mcp-threads-ov"]:
     app.add_api_route(prefix, forward_to_mcp(threads_ov_app), methods=["GET", "POST", "DELETE"])
     app.mount(prefix, threads_ov_app)
