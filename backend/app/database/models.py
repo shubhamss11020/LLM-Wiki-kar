@@ -108,3 +108,38 @@ class ThreadTurnModel(Base):
 
     def __repr__(self):
         return f"<ThreadTurn(thread_id='{self.thread_id}', turn={self.turn_number})>"
+
+
+class IdempotencyKeyModel(Base):
+    __tablename__ = "idempotency_keys"
+
+    key = Column(String(64), primary_key=True, index=True)
+    thread_id = Column(String(64), nullable=False, index=True)
+    turn_number = Column(Integer, nullable=False)
+    status = Column(String(32), default="PENDING", nullable=False, index=True) # PENDING, COMPLETED, FAILED
+    response_payload = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=True)
+
+    def __repr__(self):
+        return f"<IdempotencyKey(key='{self.key}', status='{self.status}', thread_id='{self.thread_id}')>"
+
+
+class ThreadAuditLogModel(Base):
+    __tablename__ = "thread_audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(String(64), unique=True, nullable=False, index=True)
+    thread_id = Column(String(64), nullable=False, index=True)
+    turn_number = Column(Integer, nullable=False, default=1)
+    event_type = Column(String(64), nullable=False, index=True)
+    # TURN_PRE_SAVED, RESPONSE_DELIVERED, IDEMPOTENT_REPLAY, SPOOL_OFFLINE_SAVE, SPOOL_REPLAY_SUCCESS, SYNC_FAILED
+    user_identity = Column(String(128), default="shubh", nullable=False, index=True)
+    idempotency_key = Column(String(64), nullable=True, index=True)
+    execution_time_ms = Column(Integer, default=0)
+    payload_preview = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False, index=True)
+
+    def __repr__(self):
+        return f"<ThreadAuditLog(event='{self.event_type}', thread_id='{self.thread_id}', turn={self.turn_number})>"
+

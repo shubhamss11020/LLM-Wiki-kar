@@ -15,14 +15,16 @@ from backend.app.services.search import search_knowledge_base, get_file_details,
 from backend.app.services.records import save_generation_record, query_records_by_date
 from backend.app.services.threads import (
     save_thread_turn, create_thread, append_turn, deliver_response,
-    list_threads, get_thread_detail
+    list_threads, get_thread_detail, get_audit_logs, replay_pending_spool
 )
 
 from backend.app.auth.open_oauth import OpenOAuthProvider, create_auth_settings
 
 logger = logging.getLogger(__name__)
 
-# --- Zero-friction Open OAuth 2.1 Provider for Claude.ai Remote Connectors ---
+# --- Production OAuth 2.1 Provider for Claude.ai Remote Connectors ---
+oauth_provider = OpenOAuthProvider()
+auth_settings = create_auth_settings(settings.SERVER_URL)
 
 def create_partition_mcp_server(
     name: str, 
@@ -311,17 +313,20 @@ class ThreadCreateRequest(BaseModel):
     title: str
     user_prompt: str
     timezone: Optional[str] = "America/New_York"
+    idempotency_key: Optional[str] = None
 
 class ThreadAppendRequest(BaseModel):
     thread_id: str
     user_prompt: str
     timezone: Optional[str] = "America/New_York"
+    idempotency_key: Optional[str] = None
 
 class ThreadDeliverRequest(BaseModel):
     thread_id: str
     turn_number: int
     ai_response: str
     timezone: Optional[str] = "America/New_York"
+    idempotency_key: Optional[str] = None
 
 class ThreadInteractionRequest(BaseModel):
     user: Optional[str] = "shubh"
@@ -330,6 +335,7 @@ class ThreadInteractionRequest(BaseModel):
     ai_response: str
     thread_id: Optional[str] = None
     timezone: Optional[str] = "America/New_York"
+    idempotency_key: Optional[str] = None
 
 def resolve_allowed_partitions(x_api_key: Optional[str] = Header(None)) -> Optional[List[int]]:
     """
@@ -540,7 +546,8 @@ async def deliver_thread_response(
             ai_response=req.ai_response,
             session=session,
             vault_path=settings.VAULT_PATH,
-            tz_name=req.timezone or "America/New_York"
+            tz_name=req.timezone or "America/New_York",
+            idempotency_key=req.idempotency_key
         )
         return result
     except ValueError as e:
@@ -553,7 +560,7 @@ async def save_thread_interaction_endpoint(
 ):
     """
     Direct endpoint to save or append an interaction turn into vault/threads/<user>_<title>_<date>.md
-    and index directly into PostgreSQL threads and thread_turns tables.
+    and index directly into PostgreSQL threads and thread_turns tables with idempotency and audit logs.
     """
     result = await save_thread_turn(
         user=req.user or "shubh",
@@ -563,8 +570,32 @@ async def save_thread_interaction_endpoint(
         thread_id=req.thread_id,
         session=session,
         vault_path=settings.VAULT_PATH,
-        tz_name=req.timezone or "America/New_York"
+        tz_name=req.timezone or "America/New_York",
+        idempotency_key=req.idempotency_key
     )
+    return result
+
+@app.get("/api/threads/audit-logs")
+async def get_audit_logs_endpoint(
+    thread_id: Optional[str] = Query(None),
+    event_type: Optional[str] = Query(None),
+    limit: int = 50,
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Query immutable thread audit logs for QA assertions and delivery verification.
+    """
+    logs = await get_audit_logs(session=session, thread_id=thread_id, event_type=event_type, limit=limit)
+    return {"count": len(logs), "audit_logs": logs}
+
+@app.post("/api/threads/sync-spool")
+async def trigger_spool_replay_endpoint(
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Replays offline spooled turns into PostgreSQL for Zero SPOF recovery.
+    """
+    result = await replay_pending_spool(session=session)
     return result
 
 @app.get("/api/threads")
@@ -626,28 +657,44 @@ def forward_to_mcp(subapp):
     return handler
 
 # MCP 1 & Tier 1
-mcp1_app = mcp_1.streamable_http_app(transport_security=sec_settings)
+mcp1_app = mcp_1.streamable_http_app(
+    transport_security=sec_settings,
+    auth_server_provider=oauth_provider,
+    auth_settings=auth_settings,
+)
 app.add_api_route("/mcp1", forward_to_mcp(mcp1_app), methods=["GET", "POST", "DELETE"])
 app.add_api_route("/tier1", forward_to_mcp(mcp1_app), methods=["GET", "POST", "DELETE"])
 app.mount("/mcp1", mcp1_app)
 app.mount("/tier1", mcp1_app)
 
 # MCP 2 & Tier 2
-mcp2_app = mcp_2.streamable_http_app(transport_security=sec_settings)
+mcp2_app = mcp_2.streamable_http_app(
+    transport_security=sec_settings,
+    auth_server_provider=oauth_provider,
+    auth_settings=auth_settings,
+)
 app.add_api_route("/mcp2", forward_to_mcp(mcp2_app), methods=["GET", "POST", "DELETE"])
 app.add_api_route("/tier2", forward_to_mcp(mcp2_app), methods=["GET", "POST", "DELETE"])
 app.mount("/mcp2", mcp2_app)
 app.mount("/tier2", mcp2_app)
 
 # MCP 3 & Tier 3
-mcp3_app = mcp_3.streamable_http_app(transport_security=sec_settings)
+mcp3_app = mcp_3.streamable_http_app(
+    transport_security=sec_settings,
+    auth_server_provider=oauth_provider,
+    auth_settings=auth_settings,
+)
 app.add_api_route("/mcp3", forward_to_mcp(mcp3_app), methods=["GET", "POST", "DELETE"])
 app.add_api_route("/tier3", forward_to_mcp(mcp3_app), methods=["GET", "POST", "DELETE"])
 app.mount("/mcp3", mcp3_app)
 app.mount("/tier3", mcp3_app)
 
 # Threads-OV (Universal Transcript & Second-Brain Vault)
-threads_ov_app = mcp_threads_ov.streamable_http_app(transport_security=sec_settings)
+threads_ov_app = mcp_threads_ov.streamable_http_app(
+    transport_security=sec_settings,
+    auth_server_provider=oauth_provider,
+    auth_settings=auth_settings,
+)
 for prefix in ["/threadsov", "/threads-ov", "/threads_ov", "/threads", "/thread-vault", "/cruz-brain", "/thread-logger", "/mcp-threads-ov"]:
     app.add_api_route(prefix, forward_to_mcp(threads_ov_app), methods=["GET", "POST", "DELETE"])
     app.mount(prefix, threads_ov_app)

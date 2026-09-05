@@ -1,14 +1,20 @@
 {
   "mcpServers": {
     "mcp-1-all-tiers": {
-      "url": "https://llm-wiki-kar.onrender.com/mcp1/mcp"
+      "url": "https://llm-wiki-kar.onrender.com/mcp1/mcp",
+      "note": "Full Knowledge Base (All Tiers). OAuth 2.1 PKCE auto-discovery via /.well-known/oauth-authorization-server"
     },
     "mcp-2-tier2-3": {
-      "url": "https://llm-wiki-kar.onrender.com/mcp2/mcp"
+      "url": "https://llm-wiki-kar.onrender.com/mcp2/mcp",
+      "note": "Tier 2 & 3 only (Complexion, Bases, Eyes, Lips & Culture)"
     },
     "mcp-3-tier3-only": {
-      "url": "https://llm-wiki-kar.onrender.com/mcp3/mcp"
+      "url": "https://llm-wiki-kar.onrender.com/mcp3/mcp",
+      "note": "Tier 3 only (Lips, Eyes, Climate Wear & Cultural Guides)"
+    },
+    "threads-ov": {
+      "url": "https://llm-wiki-kar.onrender.com/threadsov/mcp",
+      "note": "Universal transcript & knowledge vault connector"
     }
   }
 }
-

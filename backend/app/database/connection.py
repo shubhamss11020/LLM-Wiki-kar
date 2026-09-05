@@ -88,8 +88,40 @@ async def init_db():
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_threads_user ON threads (\"user\");"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_threads_last_updated ON threads (last_updated);"))
                 await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_thread_turns_thread_id ON thread_turns (thread_id);"))
+
+                # Idempotency & Audit Trails
+                await conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS idempotency_keys (
+                        key VARCHAR(64) PRIMARY KEY,
+                        thread_id VARCHAR(64) NOT NULL,
+                        turn_number INTEGER NOT NULL,
+                        status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+                        response_payload JSON,
+                        created_at TIMESTAMP NOT NULL,
+                        expires_at TIMESTAMP
+                    );
+                """))
+                await conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS thread_audit_logs (
+                        id SERIAL PRIMARY KEY,
+                        event_id VARCHAR(64) UNIQUE NOT NULL,
+                        thread_id VARCHAR(64) NOT NULL,
+                        turn_number INTEGER NOT NULL DEFAULT 1,
+                        event_type VARCHAR(64) NOT NULL,
+                        user_identity VARCHAR(128) NOT NULL DEFAULT 'shubh',
+                        idempotency_key VARCHAR(64),
+                        execution_time_ms INTEGER DEFAULT 0,
+                        payload_preview JSON,
+                        created_at TIMESTAMP NOT NULL
+                    );
+                """))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_idempotency_thread ON idempotency_keys (thread_id, turn_number);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_audit_thread_id ON thread_audit_logs (thread_id);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_audit_event_type ON thread_audit_logs (event_type);"))
+                await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_audit_created_at ON thread_audit_logs (created_at);"))
         except Exception as e:
             logger.warning(f"Thread table DDL: {e}")
+
 
         # Step 5: Auto-migrate any unmigrated generations into threads
         try:

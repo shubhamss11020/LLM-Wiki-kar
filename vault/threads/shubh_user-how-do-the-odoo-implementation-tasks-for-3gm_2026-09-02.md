@@ -1,17 +1,17 @@
 ---
-thread_id: "thr-134b00d8"
+thread_id: "thr-de3c5f13"
 user: "shubh"
-title: "User: How do the Odoo implementation tasks for 3GM"
-created: "2026-09-02T06:17:25.259319-04:00"
-last_updated: "2026-09-02T06:17:25.259319-04:00"
+title: "User: How do the Odoo implementation tasks for 3GM Steel dif"
+created: "2026-09-02T06:17:24.890298-04:00"
+last_updated: "2026-09-02T06:17:24.890298-04:00"
 turn_count: 1
 ---
 
-# shubh — User: How do the Odoo implementation tasks for 3GM — 2026-09-02
+# shubh — User: How do the Odoo implementation tasks for 3GM Steel dif — 2026-09-02
 
 ---
 
-## Turn 1 — 06:17:25
+## Turn 1 — 06:17:24
 
 **User:**
 User: How do the Odoo implementation tasks for 3GM Steel differ from traditional EOXS clients like Discount Pipe & Steel and Eastern States Steel? Why isn't AskCruz tracked as a standard client board in Odoo?
